@@ -14,6 +14,8 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 from main import Game
+from effects import Bullet
+from settings import PLAYER_VEL, WINDOW_WIDTH, RED, BULLET_VEL
 
 import gymnasium as gym
 from main import Game
@@ -60,5 +62,27 @@ class SpaceInvadersGymEnv(gym.Env):
         self._last_lives = 0
 
     
+    def _apply_action(self, action: int):
+        """Applies the given action to the game state."""
+        if self.game.cooldown > 0:
+            self.game.cooldown -= 1
 
+        if action == 1 and self.game.player.x > 0:  # Move left
+            self.game.player.x -= PLAYER_VEL
+        
+        elif action == 2 and self.game.player.x < WINDOW_WIDTH - 60:
+            self.game.player.x += PLAYER_VEL
+        elif action == 3 and self.game.cooldown == 0 and self.game.player_is_alive:  # Shoot
+            self.game.bullets_group.add(
+                Bullet(
+                    -1,
+                    (self.game.player.centerx, self.game.player.y - 15),
+                    RED,
+                    5, 
+                    17, 
+                    BULLET_VEL, 
+                    0,
+                )
+            )
+            self.game.cooldown = 40
 
