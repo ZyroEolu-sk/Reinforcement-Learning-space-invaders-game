@@ -86,3 +86,20 @@ class SpaceInvadersGymEnv(gym.Env):
             )
             self.game.cooldown = 40
 
+    def _update_groups(self):
+        """Updates all sprite groups in the game."""
+        if self.game.level_1:
+            self.game.alien_group.update(self.game, 70, 100, 3)
+        if self.game.level_2:
+            self.game.alien_group.update(self.game, 40, 300, 3)
+        if self.game.level_3:
+            self.game.alien_group.update(self.game, 60, 600, 2)
+
+        self.game.tech_alien_group.update(self.game)
+        self.game.braincell_group.update(self.game)
+        self.game.bullets_group.update()
+        self.game.live_group.update()
+        self.game.alien_explosions_group.update()
+        self.game.player_explosions_group.update()
+        self.game.lives_explosions_group.update()
+        self.game.teleport_group.update()
