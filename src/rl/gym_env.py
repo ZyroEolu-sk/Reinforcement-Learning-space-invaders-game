@@ -1,9 +1,26 @@
+import random
 from typing import Optional
 
+
+import sys
+import os
+
+# 1Obtain the current directory of this file
+current_dir = os.path.dirname(os.path.abspath(__file__)) # .../src/rl
+parent_dir = os.path.dirname(current_dir)                # .../src
+
+# Add the parent directory to sys.path if it's not already there
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+# 3. Ahora importamos directamente como si estuviéramos en la carpeta src
+from main import Game
+
 import gymnasium as gym
-from src.main import Game
+from main import Game
 
 import numpy as np
+
 
 class SpaceInvadersGymEnv(gym.Env):
     """Gym environment for Space Invaders.
@@ -18,6 +35,13 @@ class SpaceInvadersGymEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'render_fps': 60}
 
     def __init__(self, render_mode: Optional[str] = None, max_steps: int = 4500, frame_skip: int = 2):
+        """
+        Initializes the Space Invaders Gym environment.
+        Args:
+            render_mode (str, optional): The mode to render the environment. Defaults to None.
+            max_steps (int, optional): Maximum number of steps per episode. Defaults to 4500.
+            frame_skip (int, optional): Number of frames to skip between actions. Defaults to 2.
+        """
         super().__init__()
         self.render_mode = render_mode
         self.max_steps = max_steps
@@ -35,3 +59,7 @@ class SpaceInvadersGymEnv(gym.Env):
         self.steps = 0
         self._last_score = 0
         self._last_lives = 0
+
+    
+
+
