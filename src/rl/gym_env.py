@@ -5,7 +5,7 @@ from typing import Optional
 import sys
 import os
 
-# 1Obtain the current directory of this file
+# Obtain the current directory of this file
 current_dir = os.path.dirname(os.path.abspath(__file__)) # .../src/rl
 parent_dir = os.path.dirname(current_dir)                # .../src
 
@@ -13,7 +13,6 @@ parent_dir = os.path.dirname(current_dir)                # .../src
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-# 3. Ahora importamos directamente como si estuviéramos en la carpeta src
 from main import Game
 
 import gymnasium as gym
