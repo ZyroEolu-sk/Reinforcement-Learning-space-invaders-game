@@ -240,3 +240,12 @@ class SpaceInvadersGymEnv(gym.Env):
             self.game.player_explosions_group.update()
             if len(self.game.player_explosions_group) == 0:
                 self.game.draw_game_over()
+
+    
+    def _get_info(self) -> dict:
+        return {
+            "score": self.game.score,
+            "lives": self.game.player_lives,
+            "step": self.steps,
+            "game_over": self.game.game_over,
+        }
