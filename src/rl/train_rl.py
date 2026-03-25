@@ -1,4 +1,5 @@
 import argparse
+import os
 from gym_env import SpaceInvadersGymEnv
 
 
@@ -20,6 +21,15 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    # Create necessary directories for saving models and logs
+    os.makedirs(args.save_dir, exist_ok=True)
+    checkpoints_dir = os.path.join(args.save_dir, "checkpoints")
+    best_model_dir = os.path.join(args.save_dir, "best_model")
+    logs_dir = os.path.join(args.save_dir, "logs")
+    os.makedirs(checkpoints_dir, exist_ok=True)
+    os.makedirs(best_model_dir, exist_ok=True)
+    os.makedirs(logs_dir, exist_ok=True)
 
 
 if __name__ == "__main__":
