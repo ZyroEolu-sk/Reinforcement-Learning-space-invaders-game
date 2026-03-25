@@ -15,7 +15,7 @@ if parent_dir not in sys.path:
 
 from main import Game
 from effects import Bullet
-from settings import PLAYER_VEL, WINDOW_WIDTH, RED, BULLET_VEL
+from settings import PLAYER_VEL, WINDOW_WIDTH, WINDOW_HEIGHT, RED, BULLET_VEL
 
 import gymnasium as gym
 from main import Game
@@ -125,3 +125,75 @@ class SpaceInvadersGymEnv(gym.Env):
         self._last_lives = self.game.player_lives
 
         return reward
+
+
+    def _get_observation(self) -> np.ndarray:
+        """Constructs the observation vector from the current game state."""
+        player = self.game.player
+
+        enemies = list(self.game.alien_group.sprites()) + list(self.game.tech_alien_group.sprites()) + list(self.game.braincell_group.sprites())
+
+        enemy_bullets = [bullet for bullet in self.game.bullets_group if bullet.direction == 1]
+        player_bullets = [bullet for bullet in self.game.bullets_group if bullet.direction == -1]
+
+        nearest_enemy_dx = 0.0
+        nearest_enemy_dy = 0.0
+        nearest_enemy_dist = 1.0
+
+        if enemies:
+            distances = []
+
+            for enemy in enemies:
+                dx = (enemy.centerx - player.centerx) / WINDOW_WIDTH
+                dy = (enemy.centery - player.centery) / WINDOW_HEIGHT
+                dist = np.sqrt(dx**2 + dy**2)
+                distances.append((dist, dx, dy))
+            distances.sort(key=lambda x: x[0])
+            nearest_enemy_dist, nearest_enemy_dx, nearest_enemy_dy = distances[0]
+        
+        nearest_enemy_bullet_dx = 0.0
+        nearest_enemy_bullet_dy = 0.0
+        nearest_enemy_bullet_dist = 1.0
+
+        if enemy_bullets:
+            distances = []
+            for bullet in enemy_bullets:
+                dx = (bullet.rect.centerx - player.centerx) / WINDOW_WIDTH
+                dy = (bullet.rect.centery - player.centery) / WINDOW_HEIGHT
+                dist = (dx * dx + dy * dy) ** 0.5
+                distances.append((dist, dx, dy))
+            distances.sort(key=lambda t: t[0])
+            nearest_bullet_dist, nearest_bullet_dx, nearest_bullet_dy = distances[0]
+        
+        """
+        boss_hp_ratio = 0.0
+        if len(self.game.braincell_group) > 0:
+            boss = self.game.braincell_group.sprites()[0]
+            boss_hp_ratio = np.clip(boss.health / boss.max_health, 0.0, 1.0)
+        """
+        obs = np.array(
+            [
+                (player.centerx / WINDOW_WIDTH) * 2.0 - 1.0,
+                (player.centery / WINDOW_HEIGHT) * 2.0 - 1.0,
+                (self.game.player_lives / 3.0) * 2.0 - 1.0,
+                np.clip(self.game.score / 200.0, 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(len(self.game.alien_group) / 30.0, 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(len(self.game.tech_alien_group) / 10.0, 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(len(self.game.braincell_group), 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(len(enemy_bullets) / 25.0, 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(len(player_bullets) / 8.0, 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(len(self.game.live_group) / 5.0, 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(nearest_enemy_dx, -1.0, 1.0),
+                np.clip(nearest_enemy_dy, -1.0, 1.0),
+                np.clip(nearest_enemy_dist, 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(nearest_bullet_dx, -1.0, 1.0),
+                np.clip(nearest_bullet_dy, -1.0, 1.0),
+                np.clip(nearest_bullet_dist, 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(self.game.cooldown / 40.0, 0.0, 1.0) * 2.0 - 1.0,
+                1.0 if self.game.level_1 else -1.0,
+                1.0 if self.game.level_2 else -1.0,
+                1.0 if self.game.level_3 or self.game.level_4 else -1.0,
+            ],
+            dtype=np.float32,
+        )
+        return obs
