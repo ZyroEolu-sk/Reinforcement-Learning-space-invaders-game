@@ -15,7 +15,7 @@ if parent_dir not in sys.path:
 
 from main import Game
 from effects import Bullet
-from settings import PLAYER_VEL, WINDOW_WIDTH, WINDOW_HEIGHT, RED, BULLET_VEL
+from settings import BLACK, PLAYER_VEL, WINDOW_WIDTH, WINDOW_HEIGHT, RED, BULLET_VEL
 
 import gymnasium as gym
 from main import Game
@@ -197,3 +197,46 @@ class SpaceInvadersGymEnv(gym.Env):
             dtype=np.float32,
         )
         return obs
+
+    def _draw_state(self):
+        """Draws the current game state to the screen."""
+        self.game.screen.fill(BLACK)
+        if not self.game.game_over:
+            self.game.draw_bg_and_ui()
+            if self.game.player_is_alive:
+                self.game.screen.blit(self.game.player_img, (self.game.player.x, self.game.player.y))
+            
+            self.game.alien_group.draw(self.game.screen)
+            self.game.tech_alien_group.draw(self.game.screen)
+            self.game.braincell_group.draw(self.game.screen)
+            for boss in self.game.braincell_group:
+                boss.draw_health_bar(self.game.screen, self.game.hp_img)
+            
+            self.game.bullets_group.draw(self.game.screen)
+            self.game.live_group.draw(self.game.screen)
+            self.game.alien_explosions_group.draw(self.game.screen)
+            self.game.player_explosions_group.draw(self.game.screen)
+            self.game.lives_explosions_group.draw(self.game.screen)
+            self.game.teleport_group.draw(self.game.screen)
+            self.game.teleport_away_group.draw(self.game.screen)
+
+            level_text = None
+
+            if self.game.level_1:
+                level_text = self.game.myfont.render("Level 1", True, RED)
+            elif self.game.level_2:
+                level_text = self.game.myfont.render("Level 2", True, RED)
+            elif self.game.level_3:
+                level_text = self.game.myfont.render("Level 3", True, RED)
+            elif self.game.level_4:
+                level_text = self.game.myfont.render("Level 4", True, RED)
+
+            if level_text is not None and self.game.level_timer > 0:
+                self.game.level_timer -= 1
+                text_rect = level_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 20))
+                self.game.screen.blit(level_text, text_rect)
+        else:
+            self.game.player_explosions_group.draw(self.game.screen)
+            self.game.player_explosions_group.update()
+            if len(self.game.player_explosions_group) == 0:
+                self.game.draw_game_over()
