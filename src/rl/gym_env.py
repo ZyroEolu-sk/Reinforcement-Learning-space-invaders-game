@@ -61,7 +61,24 @@ class SpaceInvadersGymEnv(gym.Env):
         self._last_score = 0
         self._last_lives = 0
 
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
+        """Resets the environment to an initial state and returns an initial observation and info."""
+        super().reset(seed=seed)
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
+
+        self.game.reset_game()
+        self.steps = 0
+        self._last_score = self.game.score
+        self._last_lives = self.game.player_lives
+
+        observation = self._get_obs()
+        info = self._get_info()
+        return observation, info
     
+    
+
     def _apply_action(self, action: int):
         """Applies the given action to the game state."""
         if self.game.cooldown > 0:
