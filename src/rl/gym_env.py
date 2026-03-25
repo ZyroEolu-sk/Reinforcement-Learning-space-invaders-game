@@ -5,6 +5,8 @@ from typing import Optional
 import sys
 import os
 
+import pygame
+
 # Obtain the current directory of this file
 current_dir = os.path.dirname(os.path.abspath(__file__)) # .../src/rl
 parent_dir = os.path.dirname(current_dir)                # .../src
@@ -77,8 +79,54 @@ class SpaceInvadersGymEnv(gym.Env):
         info = self._get_info()
         return observation, info
     
-    
+    def step(self, action: int):
+        total_reward = 0.0
+        terminated = False
 
+        for _ in range(self.frame_skip):
+            if self.game.game_over:
+                terminated = True
+                break
+            self.steps += 1
+            self._apply_action(action)
+
+            self.game.level_manager()
+            self.game.handle_collisions()
+            self._update_groups()
+
+            reward = self._compute_reward()
+            total_reward += reward
+
+            if self.game.game_over:
+                terminated = True
+                break
+        truncated = self.steps >= self.max_steps
+        observation = self._get_observation()
+        info = self._get_info()
+
+        if self.render_mode == 'human':
+            self.render()
+
+        return observation, total_reward, terminated, truncated, info
+
+
+    def render(self):
+        self._draw_state()
+        if self.render_mode == "human":
+            pygame.event.pump()
+            pygame.display.update()
+            return None
+
+        if self.render_mode == "rgb_array":
+            frame = pygame.surfarray.array3d(self.game.screen)
+            return np.transpose(frame, (1, 0, 2))
+
+        return None
+
+    def close(self):
+        pygame.quit()
+
+        
     def _apply_action(self, action: int):
         """Applies the given action to the game state."""
         if self.game.cooldown > 0:
