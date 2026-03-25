@@ -103,3 +103,25 @@ class SpaceInvadersGymEnv(gym.Env):
         self.game.player_explosions_group.update()
         self.game.lives_explosions_group.update()
         self.game.teleport_group.update()
+        self.game.teleport_away_group.update()
+
+    def _compute_reward(self) -> float:
+        """Computes the reward based on the current game state."""
+        
+        score_gain = self.game.score - self._last_score
+        lives_delta = self.game.player_lives - self._last_lives
+
+        reward = 0.0
+        reward += float(score_gain) * 1.5  # Reward for scoring points
+        reward += 0.01 # Small reward for surviving each step
+
+        if lives_delta < 0:
+            reward += float(lives_delta) * 6
+
+        if self.game.game_over:
+            reward -= 20.0  # Large penalty for losing the game
+
+        self._last_score = self.game.score
+        self._last_lives = self.game.player_lives
+
+        return reward
