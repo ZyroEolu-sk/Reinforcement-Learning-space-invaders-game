@@ -209,8 +209,8 @@ class SpaceInvadersGymEnv(gym.Env):
             distances = []
 
             for enemy in enemies:
-                dx = (enemy.centerx - player.centerx) / WINDOW_WIDTH
-                dy = (enemy.centery - player.centery) / WINDOW_HEIGHT
+                dx = (enemy.rect.centerx - player.centerx) / WINDOW_WIDTH
+                dy = (enemy.rect.centery - player.centery) / WINDOW_HEIGHT
                 dist = np.sqrt(dx**2 + dy**2)
                 distances.append((dist, dx, dy))
             distances.sort(key=lambda x: x[0])
