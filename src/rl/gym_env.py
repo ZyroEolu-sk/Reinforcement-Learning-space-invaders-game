@@ -75,7 +75,7 @@ class SpaceInvadersGymEnv(gym.Env):
         self._last_score = self.game.score
         self._last_lives = self.game.player_lives
 
-        observation = self._get_obs()
+        observation = self._get_observation()
         info = self._get_info()
         return observation, info
     
