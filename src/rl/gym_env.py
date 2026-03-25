@@ -228,7 +228,7 @@ class SpaceInvadersGymEnv(gym.Env):
                 dist = (dx * dx + dy * dy) ** 0.5
                 distances.append((dist, dx, dy))
             distances.sort(key=lambda t: t[0])
-            nearest_bullet_dist, nearest_bullet_dx, nearest_bullet_dy = distances[0]
+            nearest_enemy_bullet_dist, nearest_enemy_bullet_dx, nearest_enemy_bullet_dy = distances[0]
         
         """
         boss_hp_ratio = 0.0
@@ -251,9 +251,9 @@ class SpaceInvadersGymEnv(gym.Env):
                 np.clip(nearest_enemy_dx, -1.0, 1.0),
                 np.clip(nearest_enemy_dy, -1.0, 1.0),
                 np.clip(nearest_enemy_dist, 0.0, 1.0) * 2.0 - 1.0,
-                np.clip(nearest_bullet_dx, -1.0, 1.0),
-                np.clip(nearest_bullet_dy, -1.0, 1.0),
-                np.clip(nearest_bullet_dist, 0.0, 1.0) * 2.0 - 1.0,
+                np.clip(nearest_enemy_bullet_dx, -1.0, 1.0),
+                np.clip(nearest_enemy_bullet_dy, -1.0, 1.0),
+                np.clip(nearest_enemy_bullet_dist, 0.0, 1.0) * 2.0 - 1.0,
                 np.clip(self.game.cooldown / 40.0, 0.0, 1.0) * 2.0 - 1.0,
                 1.0 if self.game.level_1 else -1.0,
                 1.0 if self.game.level_2 else -1.0,
