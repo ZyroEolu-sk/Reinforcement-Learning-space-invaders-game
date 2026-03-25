@@ -4,6 +4,10 @@ from gym_env import SpaceInvadersGymEnv
 
 
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
+from stable_baselines3 import PPO
+
 
 def make_train_env():
     return Monitor(SpaceInvadersGymEnv(render_mode=None, max_steps=4500, frame_skip=2))
@@ -30,6 +34,60 @@ def main():
     os.makedirs(checkpoints_dir, exist_ok=True)
     os.makedirs(best_model_dir, exist_ok=True)
     os.makedirs(logs_dir, exist_ok=True)
+
+    # Create training and evaluation environments (using DummyVecEnv for simplicity, less overhead than SubprocVecEnv)
+    train_env = DummyVecEnv([make_train_env])
+    eval_env = DummyVecEnv([make_eval_env])
+
+    #Create training and evaluation environments (using SubprocVecEnv for better performance with multiple environments)
+    # num_envs = 4  # Number of parallel environments for training
+    # train_env = SubprocVecEnv([make_train_env for _ in range(num_envs)])
+    # eval_env = SubprocVecEnv([make_eval_env for _ in range(num_envs)])
+    
+    checkpoint_callback = CheckpointCallback(
+        save_freq=25000,
+        save_path=checkpoints_dir,
+        name_prefix="ppo_space_invaders",
+    )
+    eval_callback = EvalCallback(
+        eval_env,
+        best_model_save_path=best_model_dir,
+        log_path=logs_dir,
+        eval_freq=10000,
+        deterministic=True,
+        render=False,
+    )
+
+    model = PPO(
+        policy="MlpPolicy",
+        env=train_env,
+        learning_rate=3e-4,
+        n_steps=2048,
+        batch_size=256,
+        n_epochs=10,
+        gamma=0.99,
+        gae_lambda=0.95,
+        clip_range=0.2,
+        ent_coef=0.01,
+        vf_coef=0.5,
+        max_grad_norm=0.5,
+        verbose=1,
+        tensorboard_log=logs_dir,
+        seed=args.seed,
+    )
+
+    model.learn(
+        total_timesteps=args.total_timesteps,
+        callback=[checkpoint_callback, eval_callback],
+        progress_bar=True,
+    )
+
+    final_path = os.path.join(args.save_dir, args.model_name)
+    model.save(final_path)
+    print(f"Modelo final guardado en: {final_path}.zip")
+
+    train_env.close()
+    eval_env.close()
 
 
 if __name__ == "__main__":
