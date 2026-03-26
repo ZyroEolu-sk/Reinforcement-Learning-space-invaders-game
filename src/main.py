@@ -80,6 +80,7 @@ class Game:
         self.level_timer = 300
         self.alien_countdown = 0
         self.times_placed_level_1 = 0
+        self.times_placed_level_2 = 0
         self.times_done_level_3 = 0
         self.times_done_level_4 = 0
         self.level_text_starter = [False, False, False, False] # Índices 0-3 para Lvl 1-4
@@ -198,30 +199,34 @@ class Game:
     def level_manager(self):
         # Lógica centralizada de niveles y oleadas
         if self.level_1 and len(self.alien_group) == 0:
-            if self.score == 0:
+            if self.times_placed_level_1 == 0:
                 self.alien_countdown += 1
-                if self.alien_countdown == 200:
+                if self.alien_countdown >= 200:
                     self.create_aliens(2, 3, 255)
                     self.level_timer = 300
                     self.alien_countdown = 0
                     self.times_placed_level_1 += 1
             else:
-                self.level_1 = False; self.level_2 = True
+                self.level_1 = False; 
+                self.level_2 = True
+                self.level_timer = 300
+                self.alien_countdown = 0
                 
         elif self.level_2 and len(self.alien_group) == 0:
-            if self.score <= 15:
+            if self.times_placed_level_2 == 0:
                 self.alien_countdown += 1
-                if self.alien_countdown == 300:
+                if self.alien_countdown >= 300:
                     self.create_aliens(4, 5, 157)
                     self.level_timer = 200
                     self.alien_countdown = 0
+                    self.times_placed_level_2 += 1
             else:
                 self.level_2 = False; self.level_3 = True
 
         elif self.level_3 and len(self.alien_group) == 0 and len(self.tech_alien_group) == 0:
             if self.times_done_level_3 == 0:
                 self.alien_countdown += 1
-                if self.alien_countdown == 400:
+                if self.alien_countdown >= 400:
                     for _ in range(6): self.tech_alien_group.add(TechAlien(random.randint(0, 800), random.randint(-50, 100), 2, 50))
                     self.alien_countdown = 0; self.level_timer = 300
                     self.times_done_level_3 += 1
@@ -230,7 +235,7 @@ class Game:
 
         elif self.level_4 and self.times_done_level_4 == 0:
             self.alien_countdown += 1
-            if self.alien_countdown == 400:
+            if self.alien_countdown >= 400:
                 self.braincell_group.add(Braincell(350, -150, 2))
                 self.level_timer = 300; self.times_done_level_4 += 1
 
@@ -291,8 +296,8 @@ class Game:
                     self.bullets_group.add(Bullet(-1, (self.player.centerx, self.player.y - 15), RED, 5, 17, BULLET_VEL, 0))
                     self.cooldown = 40
 
-                self.level_manager()
                 self.handle_collisions()
+                self.level_manager()
 
                 # Actualizar grupos
                 if self.level_1: self.alien_group.update(self, 70, 100, 3)
@@ -333,7 +338,21 @@ class Game:
                     level_1_text = self.myfont.render("LEVEL 1", True, WHITE)
                     level_1_rect = level_1_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 20))
                     self.screen.blit(level_1_text, level_1_rect)
-                # (Añade aquí los textos de los niveles 2, 3 y 4 si lo deseas)
+                
+                if self.level_2 and 0 < self.level_timer < 260 and self.times_placed_level_2 == 0:
+                    level_2_text = self.myfont.render("LEVEL 2", True, WHITE)
+                    level_2_rect = level_2_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 20))
+                    self.screen.blit(level_2_text, level_2_rect)
+                
+                if self.level_3 and 0 < self.level_timer < 260 and self.times_done_level_3 == 0:
+                    level_3_text = self.myfont.render("LEVEL 3", True, WHITE)
+                    level_3_rect = level_3_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 20))
+                    self.screen.blit(level_3_text, level_3_rect)
+                
+                if self.level_4 and 0 < self.level_timer < 260 and self.times_done_level_4 == 0:
+                    level_4_text = self.myfont.render("LEVEL 4", True, WHITE)
+                    level_4_rect = level_4_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 20))
+                    self.screen.blit(level_4_text, level_4_rect)
 
                 if self.paused:
                     self.resume_btn.draw(self.screen)
@@ -346,6 +365,6 @@ class Game:
 
             pygame.display.update()
 
-if __name__ == "__main__":
+if __name__ ==  "__main__":
     juego = Game()
     juego.run()
