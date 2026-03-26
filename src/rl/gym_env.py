@@ -221,6 +221,7 @@ class SpaceInvadersGymEnv(gym.Env):
 
         if self._completed_game:
             reward += 120.0
+            
 
         if self._curriculum_completed and self.max_level < 4:
             reward += 40.0
@@ -372,7 +373,7 @@ class SpaceInvadersGymEnv(gym.Env):
             self.game.tech_alien_group.draw(self.game.screen)
             self.game.braincell_group.draw(self.game.screen)
             for boss in self.game.braincell_group:
-                boss.draw_health_bar(self.game.screen, self.game.hp_img)
+                boss.draw_health(self.game.screen, self.game.hp_img)
             
             self.game.bullets_group.draw(self.game.screen)
             self.game.live_group.draw(self.game.screen)
