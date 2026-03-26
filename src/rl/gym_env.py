@@ -207,17 +207,19 @@ class SpaceInvadersGymEnv(gym.Env):
         level_progress = current_level - self._last_level_index
 
         reward = 0.0
-        reward += float(score_gain) * 6
+        reward += float(score_gain) * 8
         reward += 0.005
 
         if level_progress > 0:
             reward += 20.0 * float(level_progress)
 
         if lives_delta < 0:
-            reward += float(lives_delta) * 10.0
+            reward += float(lives_delta) * 20.0
 
+        if lives_delta > 0:
+            reward -= float(lives_delta) * 15.0
         if self.game.game_over:
-            reward -= 30.0
+            reward -= 50.0
 
         if self._completed_game:
             reward += 120.0

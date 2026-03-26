@@ -54,7 +54,7 @@ def parse_args():
     parser.add_argument("--save-dir", type=str, default="models", help="Directory to save the trained model.")
     parser.add_argument("--model-name", type=str, default="space_invaders_agent", help="Name of the saved model file.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
-    parser.add_argument("--num-envs", type=int, default=20, help="Number of parallel environments for training.")
+    parser.add_argument("--num-envs", type=int, default=12, help="Number of parallel environments for training.")
     parser.add_argument("--frame-skip", type=int, default=2, help="Number of skipped frames in the environment.")
     parser.add_argument("--max-steps", type=int, default=12000, help="Maximum number of steps per episode.")
     parser.add_argument("--start-level", type=int, default=1, help="Curriculum initial level (1-4).")
