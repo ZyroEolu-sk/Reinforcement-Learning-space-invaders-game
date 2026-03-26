@@ -15,8 +15,8 @@ parent_dir = os.path.dirname(current_dir)                # .../src
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from main import Game
 from effects import Bullet
+from entities import TechAlien, Braincell
 from settings import BLACK, PLAYER_VEL, WINDOW_WIDTH, WINDOW_HEIGHT, RED, BULLET_VEL
 
 import gymnasium as gym
@@ -33,24 +33,37 @@ class SpaceInvadersGymEnv(gym.Env):
     1: move left
     2: move right
     3: shoot
+    4: move left + shoot
+    5: move right + shoot
     """
     # Metadata for rendering
     metadata = {'render.modes': ['human', 'rgb_array'], 'render_fps': 60}
 
-    def __init__(self, render_mode: Optional[str] = None, max_steps: int = 4500, frame_skip: int = 2):
+    def __init__(
+        self,
+        render_mode: Optional[str] = None,
+        max_steps: int = 4500,
+        frame_skip: int = 2,
+        start_level: int = 1,
+        max_level: int = 4,
+    ):
         """
         Initializes the Space Invaders Gym environment.
         Args:
             render_mode (str, optional): The mode to render the environment. Defaults to None.
             max_steps (int, optional): Maximum number of steps per episode. Defaults to 4500.
             frame_skip (int, optional): Number of frames to skip between actions. Defaults to 2.
+            start_level (int, optional): Initial level for curriculum training. Defaults to 1.
+            max_level (int, optional): Maximum level used as curriculum target. Defaults to 4.
         """
         super().__init__()
         self.render_mode = render_mode
         self.max_steps = max_steps
         self.frame_skip = frame_skip
+        self.start_level = int(np.clip(start_level, 1, 4))
+        self.max_level = int(np.clip(max_level, 1, 4))
 
-        self.action_space = gym.spaces.Discrete(4)  # 4 discrete actions
+        self.action_space = gym.spaces.Discrete(6)  # 6 discrete actions
         self.observation_space = gym.spaces.Box(
             low=-1, 
             high=1, 
@@ -62,6 +75,9 @@ class SpaceInvadersGymEnv(gym.Env):
         self.steps = 0
         self._last_score = 0
         self._last_lives = 0
+        self._last_level_index = 1
+        self._completed_game = False
+        self._curriculum_completed = False
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         """Resets the environment to an initial state and returns an initial observation and info."""
@@ -71,9 +87,13 @@ class SpaceInvadersGymEnv(gym.Env):
             np.random.seed(seed)
 
         self.game.reset_game()
+        self._set_start_level_state()
         self.steps = 0
         self._last_score = self.game.score
         self._last_lives = self.game.player_lives
+        self._last_level_index = self._get_level_index()
+        self._completed_game = False
+        self._curriculum_completed = False
 
         observation = self._get_observation()
         info = self._get_info()
@@ -94,10 +114,13 @@ class SpaceInvadersGymEnv(gym.Env):
             self.game.handle_collisions()
             self._update_groups()
 
+            self._completed_game = self._is_game_completed()
+            self._curriculum_completed = self._is_curriculum_target_completed()
+
             reward = self._compute_reward()
             total_reward += reward
 
-            if self.game.game_over:
+            if self.game.game_over or self._completed_game or self._curriculum_completed:
                 terminated = True
                 break
         truncated = self.steps >= self.max_steps
@@ -132,12 +155,17 @@ class SpaceInvadersGymEnv(gym.Env):
         if self.game.cooldown > 0:
             self.game.cooldown -= 1
 
-        if action == 1 and self.game.player.x > 0:  # Move left
+        move_left = action in (1, 4)
+        move_right = action in (2, 5)
+        shoot = action in (3, 4, 5)
+
+        if move_left and self.game.player.x > 0:
             self.game.player.x -= PLAYER_VEL
-        
-        elif action == 2 and self.game.player.x < WINDOW_WIDTH - 60:
+
+        if move_right and self.game.player.x < WINDOW_WIDTH - 60:
             self.game.player.x += PLAYER_VEL
-        elif action == 3 and self.game.cooldown == 0 and self.game.player_is_alive:  # Shoot
+
+        if shoot and self.game.cooldown == 0 and self.game.player_is_alive:
             self.game.bullets_group.add(
                 Bullet(
                     -1,
@@ -175,21 +203,90 @@ class SpaceInvadersGymEnv(gym.Env):
         
         score_gain = self.game.score - self._last_score
         lives_delta = self.game.player_lives - self._last_lives
+        current_level = self._get_level_index()
+        level_progress = current_level - self._last_level_index
 
         reward = 0.0
-        reward += float(score_gain) * 1.5  # Reward for scoring points
-        reward += 0.01 # Small reward for surviving each step
+        reward += float(score_gain) * 6
+        reward += 0.005
+
+        if level_progress > 0:
+            reward += 20.0 * float(level_progress)
 
         if lives_delta < 0:
-            reward += float(lives_delta) * 6
+            reward += float(lives_delta) * 10.0
 
         if self.game.game_over:
-            reward -= 20.0  # Large penalty for losing the game
+            reward -= 30.0
+
+        if self._completed_game:
+            reward += 120.0
+
+        if self._curriculum_completed and self.max_level < 4:
+            reward += 40.0
 
         self._last_score = self.game.score
         self._last_lives = self.game.player_lives
+        self._last_level_index = current_level
 
         return reward
+
+    def _get_level_index(self) -> int:
+        if self.game.level_1:
+            return 1
+        if self.game.level_2:
+            return 2
+        if self.game.level_3:
+            return 3
+        return 4
+
+    def _is_game_completed(self) -> bool:
+        return (
+            self.game.level_4
+            and self.game.times_done_level_4 > 0
+            and len(self.game.braincell_group) == 0
+            and not self.game.game_over
+            and self.game.player_is_alive
+        )
+
+    def _is_curriculum_target_completed(self) -> bool:
+        if self.max_level >= 4:
+            return False
+        return self._get_level_index() > self.max_level
+
+    def _set_start_level_state(self):
+        if self.start_level == 1:
+            return
+
+        self.game.level_1 = False
+        self.game.level_2 = False
+        self.game.level_3 = False
+        self.game.level_4 = False
+        self.game.alien_group.empty()
+        self.game.tech_alien_group.empty()
+        self.game.braincell_group.empty()
+        self.game.alien_countdown = 0
+
+        if self.start_level == 2:
+            self.game.level_2 = True
+            self.game.create_aliens(4, 5, 157)
+            self.game.level_timer = 200
+            return
+
+        if self.start_level == 3:
+            self.game.level_3 = True
+            self.game.times_done_level_3 = 1
+            for _ in range(6):
+                self.game.tech_alien_group.add(
+                    TechAlien(random.randint(0, 800), random.randint(-50, 100), 2, 50)
+                )
+            self.game.level_timer = 300
+            return
+
+        self.game.level_4 = True
+        self.game.times_done_level_4 = 1
+        self.game.braincell_group.add(Braincell(350, -150, 2))
+        self.game.level_timer = 300
 
 
     def _get_observation(self) -> np.ndarray:
@@ -313,4 +410,7 @@ class SpaceInvadersGymEnv(gym.Env):
             "lives": self.game.player_lives,
             "step": self.steps,
             "game_over": self.game.game_over,
+            "level": self._get_level_index(),
+            "completed_game": self._completed_game,
+            "curriculum_completed": self._curriculum_completed,
         }
