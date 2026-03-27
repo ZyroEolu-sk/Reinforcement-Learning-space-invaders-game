@@ -1,0 +1,3 @@
+[submodule "space-invaders-game"]
+	path = space-invaders-game
+	url = git@github.com:ZyroEolu-sk/space-invaders-game.git
