@@ -62,7 +62,7 @@ class SpaceInvadersGymEnv(gym.Env):
         self.start_level = int(np.clip(start_level, 1, 4))
         self.max_level = int(np.clip(max_level, 1, 4))
 
-        self.action_space = gym.spaces.Discrete(6)  # 6 discrete actions
+        self.action_space = gym.spaces.Discrete(4)  # 4 discrete actions
         self.observation_space = gym.spaces.Box(
             low=-1, 
             high=1, 
@@ -77,6 +77,7 @@ class SpaceInvadersGymEnv(gym.Env):
         self._last_level_index = 1
         self._completed_game = False
         self._curriculum_completed = False
+        self.boss_lives = 100
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         """Resets the environment to an initial state and returns an initial observation and info."""
@@ -154,9 +155,9 @@ class SpaceInvadersGymEnv(gym.Env):
         if self.game.cooldown > 0:
             self.game.cooldown -= 1
 
-        move_left = action in (1, 4)
-        move_right = action in (2, 5)
-        shoot = action in (3, 4, 5)
+        move_left = action == 0
+        move_right = action == 1
+        shoot = action == 2
 
         if move_left and self.game.player.x > 0:
             self.game.player.x -= PLAYER_VEL
@@ -218,11 +219,18 @@ class SpaceInvadersGymEnv(gym.Env):
         if lives_delta > 0:
             reward -= float(lives_delta) * 15.0
         if self.game.game_over:
-            reward -= 50.0
+            reward -= 100.0
 
         if self._completed_game:
             reward += 120.0
+        
+        if self.game.level_4 and len(self.game.braincell_group) > 0:
+            boss_actual_lives = self.game.braincell_group.sprites()[0].lives
+            boss_lives_delta = boss_actual_lives - self.boss_lives
+            reward += float(-boss_lives_delta) * 10.0
+            self.boss_lives = boss_actual_lives
             
+
 
         if self._curriculum_completed and self.max_level < 4:
             reward += 40.0
