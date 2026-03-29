@@ -18,7 +18,7 @@ if game_src_dir not in sys.path:
     sys.path.append(game_src_dir)
 
 from main import Game
-from settings import WINDOW_WIDTH, WINDOW_HEIGHT, PLAYER_VEL, RED
+from settings import WINDOW_WIDTH, WINDOW_HEIGHT, PLAYER_VEL, RED, BLACK, BULLET_VEL
 from entities import TechAlien, Braincell
 from effects import Bullet
 
@@ -316,7 +316,6 @@ class SpaceInvadersVisionEnv(gym.Env):
 
     def _draw_state(self):
         """Draw the game state."""
-        from settings import BLACK
         
         self.game.screen.fill(BLACK)
         if not self.game.game_over:
@@ -433,9 +432,6 @@ class SpaceInvadersVisionEnv(gym.Env):
         self.game.braincell_group.add(Braincell(350, -150, 2))
         self.game.level_timer = 300
 
-
-    
-
     def _apply_action(self, action: int):
         """Applies the given action to the game state."""
 
@@ -464,7 +460,7 @@ class SpaceInvadersVisionEnv(gym.Env):
                     0,
                 )
             )
-            self.game.cooldown = COOLDOWN_TIME
+            self.game.cooldown = 40
 
         
     
