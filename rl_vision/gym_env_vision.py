@@ -31,6 +31,8 @@ class SpaceInvadersVisionEnv(gym.Env):
     1: move left
     2: move right
     3: shoot
+    4: move left + shoot
+    5: move right + shoot
     """
     
     metadata = {'render.modes': ['human', 'rgb_array'], 'render_fps': 60}
@@ -44,6 +46,7 @@ class SpaceInvadersVisionEnv(gym.Env):
             max_level: int = 4,
             img_width: int = 84,
             img_height: int = 84,
+            enable_combo_actions: bool = True,
         ):
         """
         Initializes the Vision-based Space Invaders Gym environment.
@@ -56,6 +59,7 @@ class SpaceInvadersVisionEnv(gym.Env):
             max_level: Maximum level for curriculum
             img_width: Width of frame (default 84)
             img_height: Height of frame (default 84)
+            enable_combo_actions: Enables combined move+shoot actions
         """
         super().__init__()
         self.render_mode = render_mode
@@ -63,8 +67,12 @@ class SpaceInvadersVisionEnv(gym.Env):
         self.frame_skip = frame_skip
         self.start_level = int(np.clip(start_level, 1, 4))
         self.max_level = int(np.clip(max_level, 1, 4))
-        self.img_width = img_width
-        self.img_height = img_height
+        self.img_width = int(img_width)
+        self.img_height = int(img_height)
+        self.enable_combo_actions = bool(enable_combo_actions)
+
+        if self.img_width <= 0 or self.img_height <= 0:
+            raise ValueError(f"img_width and img_height must be > 0, got {self.img_width}x{self.img_height}")
 
         # Observation: stacked frames (84x84x4)
         self.observation_space = gym.spaces.Box(
@@ -74,8 +82,8 @@ class SpaceInvadersVisionEnv(gym.Env):
             dtype=np.uint8
         )
         
-        # Action space: 4 actions
-        self.action_space = gym.spaces.Discrete(4)
+        # Action space can be classic 4 actions or extended 6 actions.
+        self.action_space = gym.spaces.Discrete(6 if self.enable_combo_actions else 4)
 
         self.game = Game()
 
@@ -117,7 +125,10 @@ class SpaceInvadersVisionEnv(gym.Env):
         
         # Inicializar frame buffer
         self.frame_buffer.clear()
-        initial_frame = self._preprocess_frame(self.game.get_frame())
+        self._draw_state()
+        initial_frame = pygame.surfarray.array3d(self.game.screen)
+        initial_frame = np.transpose(initial_frame, (1, 0, 2))
+        initial_frame = self._preprocess_frame(initial_frame)
         for _ in range(4):
             self.frame_buffer.append(initial_frame)
         
@@ -185,15 +196,22 @@ class SpaceInvadersVisionEnv(gym.Env):
         if self.game.cooldown > 0:
             self.game.cooldown -= 1
 
-        # Actions: 0=no-op, 1=left, 2=right, 3=shoot
-        move_left = action == 1
-        move_right = action == 2
-        shoot = action == 3
+        if self.enable_combo_actions:
+            # Actions:
+            # 0=no-op, 1=left, 2=right, 3=shoot, 4=left+shoot, 5=right+shoot
+            move_left = action in (1, 4)
+            move_right = action in (2, 5)
+            shoot = action in (3, 4, 5)
+        else:
+            # Classic actions: 0=no-op, 1=left, 2=right, 3=shoot
+            move_left = action == 1
+            move_right = action == 2
+            shoot = action == 3
 
         if move_left and self.game.player.x > 0:
             self.game.player.x -= PLAYER_VEL
 
-        if move_right and self.game.player.x < WINDOW_WIDTH - 60:
+        if move_right and self.game.player.x < WINDOW_WIDTH - self.game.player.width:
             self.game.player.x += PLAYER_VEL
 
         if shoot and self.game.cooldown == 0 and self.game.player_is_alive:
@@ -204,7 +222,7 @@ class SpaceInvadersVisionEnv(gym.Env):
                     RED,
                     5, 
                     17, 
-                    10,  # bullet velocity
+                    BULLET_VEL,
                     0,
                 )
             )
@@ -239,46 +257,47 @@ class SpaceInvadersVisionEnv(gym.Env):
         reward = 0.0
         
         # Reward for destroying enemies/gaining score
-        reward += float(score_gain) * 8
+        reward += float(score_gain) * 8.0
         
         # Small reward for staying alive
-        reward += 0.005
+        reward += 0.0001
 
         # Reward for advancing levels
         if level_progress > 0:
-            reward += 20.0 * float(level_progress)
+            reward += 12.0 * float(level_progress)
 
         # Penalty for losing lives
         if lives_delta < 0:
-            reward += float(lives_delta) * 20.0
+            reward += float(lives_delta) * 12.0
 
-        # Penalty for gaining lives (unexpected)
         if lives_delta > 0:
-            reward -= float(lives_delta) * 15.0
+            reward += float(lives_delta) * 15.0
 
         # Penalty for game over
         if self.game.game_over:
-            reward -= 100.0
+            reward -= 40.0
 
         # Big reward for completing the game
         if self._completed_game:
-            reward += 120.0
+            reward += 60.0
 
         # Reward for boss damage
         if self.game.level_4 and len(self.game.braincell_group) > 0:
             boss_actual_lives = self.game.braincell_group.sprites()[0].lives
             boss_lives_delta = boss_actual_lives - self.boss_lives
-            reward += float(-boss_lives_delta) * 10.0
+            reward += float(-boss_lives_delta) * 4.0
             self.boss_lives = boss_actual_lives
 
         # Reward for curriculum completion
         if self._curriculum_completed and self.max_level < 4:
-            reward += 40.0
+            reward += 20.0
 
         self._last_score = self.game.score
         self._last_lives = self.game.player_lives
         self._last_level_index = current_level
 
+        # Clip reward to prevent extreme values from destabilizing PPO gradients
+        reward = float(np.clip(reward, -20.0, 20.0))
         return reward
 
     def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
@@ -303,7 +322,9 @@ class SpaceInvadersVisionEnv(gym.Env):
     def _get_observation(self) -> np.ndarray:
         """Get the current observation (stacked frames)."""
         # Get current frame from game
-        current_frame = self.game.get_frame()
+        self._draw_state()
+        current_frame = pygame.surfarray.array3d(self.game.screen)
+        current_frame = np.transpose(current_frame, (1, 0, 2))
         processed_frame = self._preprocess_frame(current_frame)
         
         # Add to buffer
@@ -432,46 +453,6 @@ class SpaceInvadersVisionEnv(gym.Env):
         self.game.braincell_group.add(Braincell(350, -150, 2))
         self.game.level_timer = 300
 
-    def _apply_action(self, action: int):
-        """Applies the given action to the game state."""
-
-        if self.game.cooldown > 0:
-            self.game.cooldown -= 1
-        
-        move_left = action == 0
-        move_right = action == 1
-        shoot = action == 2
-
-        if move_left and self.game.player.x > 0:
-            self.game.player.x -= PLAYER_VEL 
-
-        if move_right and self.game.player.x < WINDOW_WIDTH - self.game.player.width:
-            self.game.player.x += PLAYER_VEL
-        
-        if shoot and self.game.cooldown == 0 and self.game.player.can_shoot():
-            self.game.bullets_group.add(
-                Bullet(
-                    -1,
-                    (self.game.player.centerx, self.game.player.y - 15),
-                    RED,
-                    5, 
-                    17, 
-                    BULLET_VEL, 
-                    0,
-                )
-            )
-            self.game.cooldown = 40
 
         
-    
-
-
-        
-
-
-
-
-
-    
-    
 
