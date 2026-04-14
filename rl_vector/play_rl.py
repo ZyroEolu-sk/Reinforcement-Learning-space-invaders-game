@@ -17,7 +17,7 @@ def _resolve_project_path(path: str) -> str:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Play a trained reinforcement learning agent in Space Invaders.")
-    parser.add_argument("--model-path", type=str, default="models/best_model/best_model", help="Path to the trained model file (relative to project root).")
+    parser.add_argument("--model-path", type=str, default="models/vector/best_model/best_model", help="Path to the trained model file (relative to project root).")
     parser.add_argument("--episodes", type=int, default=10, help="Number of episodes to play.")
     parser.add_argument("--deterministic", action="store_true", help="Use deterministic actions.")
     return parser.parse_args()

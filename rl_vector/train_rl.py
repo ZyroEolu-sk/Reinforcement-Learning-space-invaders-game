@@ -1,5 +1,6 @@
 import argparse
 import os
+import shutil
 from pathlib import Path
 from typing import Callable
 from gym_env import SpaceInvadersGymEnv
@@ -56,12 +57,11 @@ def make_env_fn(args, is_eval: bool = False) -> Callable[[], Monitor]:
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a reinforcement learning agent to play Space Invaders.")
     parser.add_argument("--total-timesteps", type=int, default=10000000, help="Total number of timesteps for training.")
-    parser.add_argument("--save-dir", type=str, default="models", help="Directory to save the trained model (relative to project root).")
-    parser.add_argument("--model-name", type=str, default="space_invaders_agent", help="Name of the saved model file.")
+    parser.add_argument("--save-dir", type=str, default="models/vector", help="Directory to save the trained model (relative to project root).")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
     parser.add_argument("--num-envs", type=int, default=12, help="Number of parallel environments for training.")
-    parser.add_argument("--frame-skip", type=int, default=2, help="Number of skipped frames in the environment.")
-    parser.add_argument("--max-steps", type=int, default=12000, help="Maximum number of steps per episode.")
+    parser.add_argument("--frame-skip", type=int, default=2, help="Frames to skip per action.")
+    parser.add_argument("--max-steps", type=int, default=12000, help="Maximum steps per episode.")
     parser.add_argument("--start-level", type=int, default=1, help="Curriculum initial level (1-4).")
     parser.add_argument("--max-level", type=int, default=4, help="Curriculum target level (1-4).")
     parser.add_argument("--eval-freq", type=int, default=25000, help="Evaluation frequency in timesteps.")
@@ -122,7 +122,7 @@ def main():
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
-        ent_coef=0.005,
+        ent_coef=0.015,
         vf_coef=0.5,
         max_grad_norm=0.5,
         verbose=1,
@@ -136,9 +136,19 @@ def main():
         progress_bar=True,
     )
 
-    final_path = os.path.join(save_dir, args.model_name)
-    model.save(final_path)
-    print(f"Modelo final guardado en: {final_path}.zip")
+    final_model_dir = os.path.join(save_dir, "best_model")
+    os.makedirs(final_model_dir, exist_ok=True)
+    final_zip_path = os.path.join(final_model_dir, "best_model.zip")
+    eval_best_model_path = os.path.join(best_model_dir, "best_model.zip")
+
+    if os.path.isfile(eval_best_model_path):
+        if os.path.abspath(eval_best_model_path) != os.path.abspath(final_zip_path):
+            shutil.copy2(eval_best_model_path, final_zip_path)
+        print(f"✓ Mejor modelo guardado en: {final_zip_path}")
+    else:
+        # Fallback when EvalCallback did not produce a best model file.
+        model.save(os.path.join(final_model_dir, "best_model"))
+        print(f"⚠ No se encontró best_model evaluado; se guardó el último modelo en: {final_zip_path}")
 
     train_env.close()
     eval_env.close()

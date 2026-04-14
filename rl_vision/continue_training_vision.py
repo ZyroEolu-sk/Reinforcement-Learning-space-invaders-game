@@ -96,7 +96,7 @@ def parse_args():
     parser.add_argument("--img-width", type=int, default=None, help="Observation frame width after preprocessing (auto from model if omitted).")
     parser.add_argument("--img-height", type=int, default=None, help="Observation frame height after preprocessing (auto from model if omitted).")
     parser.add_argument("--start-level", type=int, default=1, help="Curriculum initial level (1-4).")
-    parser.add_argument("--max-level", type=int, default=3, help="Curriculum target level (1-4).")
+    parser.add_argument("--max-level", type=int, default=4, help="Curriculum target level (1-4).")
     parser.add_argument("--eval-freq", type=int, default=50000, help="Evaluation frequency in timesteps.")
     parser.add_argument("--n-eval-episodes", type=int, default=3, help="Episodes per periodic evaluation (lower is faster).")
     parser.add_argument("--comparison-episodes", type=int, default=10, help="Episodes used in final model comparison.")

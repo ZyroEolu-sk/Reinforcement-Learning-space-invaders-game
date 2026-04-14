@@ -239,6 +239,8 @@ class SpaceInvadersGymEnv(gym.Env):
         self._last_lives = self.game.player_lives
         self._last_level_index = current_level
 
+        # Clip reward to prevent extreme values from destabilizing PPO gradients
+        reward = float(np.clip(reward, -20.0, 20.0))
         return reward
 
     def _get_level_index(self) -> int:

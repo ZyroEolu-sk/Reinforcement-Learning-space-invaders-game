@@ -61,7 +61,7 @@ def parse_args():
     parser.add_argument(
         "--model-path",
         type=str,
-        default="models/best_model/best_model",
+        default="models/vector/best_model/best_model",
         help="Path to an existing PPO model (.zip optional).",
     )
     parser.add_argument(
@@ -73,14 +73,8 @@ def parse_args():
     parser.add_argument(
         "--save-dir",
         type=str,
-        default="models",
+        default="models/vector",
         help="Directory where continued-training outputs will be saved (relative to project root).",
-    )
-    parser.add_argument(
-        "--model-name",
-        type=str,
-        default="best_model",
-        help="Name for the final continued model file.",
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
     parser.add_argument("--num-envs", type=int, default=12, help="Parallel training environments.")
@@ -122,12 +116,13 @@ def main():
     save_dir = _resolve_project_path(args.save_dir)
 
     os.makedirs(save_dir, exist_ok=True)
+    # Keep checkpoints/logs separated, but keep a single best_model directory.
     checkpoints_dir = os.path.join(save_dir, "checkpoints_continued")
-    best_model_dir = os.path.join(save_dir, "best_model_continued")
     logs_dir = os.path.join(save_dir, "logs_continued")
+    best_model_dir = os.path.dirname(model_path)
     os.makedirs(checkpoints_dir, exist_ok=True)
-    os.makedirs(best_model_dir, exist_ok=True)
     os.makedirs(logs_dir, exist_ok=True)
+    os.makedirs(best_model_dir, exist_ok=True)
 
     num_envs = max(1, args.num_envs)
     train_factories = [make_env_fn(args) for _ in range(num_envs)]
@@ -163,18 +158,68 @@ def main():
         reset_num_timesteps=False,
     )
 
-    final_path = os.path.join(save_dir, args.model_name)
-    final_zip_path = final_path if final_path.endswith(".zip") else f"{final_path}.zip"
-    best_model_path = os.path.join(best_model_dir, "best_model.zip")
-
-    if os.path.isfile(best_model_path):
-        shutil.copy2(best_model_path, final_zip_path)
-        print(f"Modelo con mejor recompensa guardado en: {final_zip_path}")
+    # Compare new best model from eval callbacks with current best model
+    # Only overwrite if the new model is better
+    final_zip_path = model_path if model_path.endswith(".zip") else f"{model_path}.zip"
+    eval_best_model_path = os.path.join(best_model_dir, "best_model.zip")
+    
+    if os.path.isfile(eval_best_model_path) and os.path.abspath(eval_best_model_path) != os.path.abspath(final_zip_path):
+        print("\n[model-comparison] Comparando modelo actual vs nuevo modelo entrenado...")
+        try:
+            # Load both models for comparison
+            current_best = PPO.load(final_zip_path)
+            new_candidate = PPO.load(eval_best_model_path)
+            
+            # Run quick evaluations (5 episodes each) to compare
+            print("  Evaluando modelo actual (5 episodios)...")
+            current_returns = []
+            for _ in range(5):
+                obs, _ = eval_env.reset()
+                done = False
+                episode_return = 0.0
+                while not done:
+                    action, _ = current_best.predict(obs, deterministic=True)
+                    obs, reward, done, truncated, _ = eval_env.step(action)
+                    episode_return += float(reward)
+                    done = done or truncated
+                current_returns.append(episode_return)
+            
+            print("  Evaluando modelo nuevo (5 episodios)...")
+            new_returns = []
+            for _ in range(5):
+                obs, _ = eval_env.reset()
+                done = False
+                episode_return = 0.0
+                while not done:
+                    action, _ = new_candidate.predict(obs, deterministic=True)
+                    obs, reward, done, truncated, _ = eval_env.step(action)
+                    episode_return += float(reward)
+                    done = done or truncated
+                new_returns.append(episode_return)
+            
+            current_mean = float(np.mean(current_returns))
+            new_mean = float(np.mean(new_returns))
+            
+            print(f"  Modelo actual: {current_mean:.2f} (returnos: {current_returns})")
+            print(f"  Modelo nuevo:  {new_mean:.2f} (returnos: {new_returns})")
+            
+            if new_mean > current_mean:
+                shutil.copy2(eval_best_model_path, final_zip_path)
+                print(f"✓ Modelo nuevo es mejor (+{new_mean - current_mean:.2f}). Sobreescrito: {final_zip_path}")
+            else:
+                print(f"✗ Modelo actual es mejor o igual. Manteniéndolo: {final_zip_path}")
+        except Exception as e:
+            print(f"  ⚠ Error en comparación: {e}. Usando EvalCallback best_model.")
+            shutil.copy2(eval_best_model_path, final_zip_path)
+    elif os.path.isfile(eval_best_model_path):
+        # Same file path, no copy needed
+        print(f"✓ Mejor modelo guardado en: {final_zip_path}")
     else:
-        model.save(final_path)
+        # No eval best model found, save current
+        model.save(model_path)
         print(
-            "No se encontro best_model.zip (posible falta de evaluaciones); "
-            f"se guardo el ultimo modelo en: {final_zip_path}"
+            "⚠ No se encontro best_model.zip en evaluaciones; "
+            f"se guardo el último modelo entrenado en: {final_zip_path}"
         )
 
     train_env.close()
