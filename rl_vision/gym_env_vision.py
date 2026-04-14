@@ -1,4 +1,5 @@
 from typing import Optional
+import warnings
 
 import gymnasium as gym
 import numpy as np
@@ -8,6 +9,14 @@ import cv2
 import sys
 import os
 import random
+
+# Pygame still imports pkg_resources internally in some releases.
+# Keep this warning quiet until upstream removes that import path.
+warnings.filterwarnings(
+    "ignore",
+    message="pkg_resources is deprecated as an API.*",
+    category=UserWarning,
+)
 import pygame
 
 # Obtain the current directory of this file
@@ -91,9 +100,10 @@ class SpaceInvadersVisionEnv(gym.Env):
         self._last_score = 0
         self._last_lives = 3
         self._last_level_index = 1
+        self._last_alien_count = 0
+        self._steps_since_last_kill = 0
         self._completed_game = False
         self._curriculum_completed = False
-        self.boss_lives = 100
         
         # Frame buffer para stacking
         self.frame_buffer = deque(maxlen=4)
@@ -119,9 +129,10 @@ class SpaceInvadersVisionEnv(gym.Env):
         self._last_score = self.game.score
         self._last_lives = self.game.player_lives
         self._last_level_index = self._get_level_index()
+        self._last_alien_count = len(self.game.alien_group)
+        self._steps_since_last_kill = 0
         self._completed_game = False
         self._curriculum_completed = False
-        self.boss_lives = 100
         
         # Inicializar frame buffer
         self.frame_buffer.clear()
@@ -167,6 +178,11 @@ class SpaceInvadersVisionEnv(gym.Env):
         truncated = self.steps >= self.max_steps
         observation = self._get_observation()
         info = self._get_info()
+
+        # End-of-round penalty when aliens remain alive.
+        if (terminated or truncated) and len(self.game.alien_group) > 0:
+            remaining_aliens = float(len(self.game.alien_group))
+            total_reward -= min(4.0, 0.08 * remaining_aliens)
 
         if self.render_mode == 'human':
             self.render()
@@ -247,58 +263,53 @@ class SpaceInvadersVisionEnv(gym.Env):
         self.game.teleport_group.update()
         self.game.teleport_away_group.update()
 
+        
     def _compute_reward(self) -> float:
-        """Compute reward based on game state."""
         score_gain = self.game.score - self._last_score
         lives_delta = self.game.player_lives - self._last_lives
-        current_level = self._get_level_index()
-        level_progress = current_level - self._last_level_index
+        current_alien_count = len(self.game.alien_group)
+        alien_kills = self._last_alien_count - current_alien_count
 
         reward = 0.0
-        
-        # Reward for destroying enemies/gaining score
-        reward += float(score_gain) * 8.0
-        
-        # Small reward for staying alive
-        reward += 0.0001
 
-        # Reward for advancing levels
-        if level_progress > 0:
-            reward += 12.0 * float(level_progress)
+        # Score: escala pequeña para no saturar el clip
+        reward += float(score_gain) * 0.1
 
-        # Penalty for losing lives
+        # Supervivencia mínima uniforme.
+        reward += 0.0005
+
+        # Señal densa de combate (misma regla en todos los niveles).
+        if alien_kills > 0:
+            reward += 0.35 * float(alien_kills)
+            self._steps_since_last_kill = 0
+        elif current_alien_count > 0:
+            self._steps_since_last_kill += 1
+            # Penalización progresiva por estancarse sin eliminar enemigos.
+            reward -= min(0.002, 0.00001 * float(self._steps_since_last_kill))
+
+        # Bonus al limpiar la oleada actual (aplica a cualquier nivel).
+        if current_alien_count == 0 and self._last_alien_count > 0:
+            reward += 4.0
+
+        # Penalización por perder vida
         if lives_delta < 0:
-            reward += float(lives_delta) * 12.0
+            reward += float(lives_delta) * 8.0
 
-        if lives_delta > 0:
-            reward += float(lives_delta) * 15.0
-
-        # Penalty for game over
+        # Game over
         if self.game.game_over:
-            reward -= 40.0
+            reward -= 8.0
 
-        # Big reward for completing the game
+        # Completar el juego
         if self._completed_game:
-            reward += 60.0
-
-        # Reward for boss damage
-        if self.game.level_4 and len(self.game.braincell_group) > 0:
-            boss_actual_lives = self.game.braincell_group.sprites()[0].lives
-            boss_lives_delta = boss_actual_lives - self.boss_lives
-            reward += float(-boss_lives_delta) * 4.0
-            self.boss_lives = boss_actual_lives
-
-        # Reward for curriculum completion
-        if self._curriculum_completed and self.max_level < 4:
-            reward += 20.0
+            reward += 10.0
 
         self._last_score = self.game.score
         self._last_lives = self.game.player_lives
-        self._last_level_index = current_level
+        self._last_level_index = self._get_level_index()
+        self._last_alien_count = current_alien_count
 
-        # Clip reward to prevent extreme values from destabilizing PPO gradients
-        reward = float(np.clip(reward, -20.0, 20.0))
-        return reward
+    
+        return float(np.clip(reward, -10.0, 10.0))
 
     def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
         """
@@ -398,6 +409,7 @@ class SpaceInvadersVisionEnv(gym.Env):
             "step": self.steps,
             "game_over": self.game.game_over,
             "level": self._get_level_index(),
+            "alien_count": len(self.game.alien_group),
             "completed_game": self._completed_game,
             "curriculum_completed": self._curriculum_completed,
         }
