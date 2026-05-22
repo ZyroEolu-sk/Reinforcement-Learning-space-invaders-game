@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument("--total-timesteps", type=int, default=10000000, help="Total number of timesteps for training.")
     parser.add_argument("--save-dir", type=str, default="models/vector", help="Directory to save the trained model (relative to project root).")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
-    parser.add_argument("--num-envs", type=int, default=12, help="Number of parallel environments for training.")
+    parser.add_argument("--num-envs", type=int, default=4, help="Number of parallel environments for training.")
     parser.add_argument("--frame-skip", type=int, default=2, help="Frames to skip per action.")
     parser.add_argument("--max-steps", type=int, default=12000, help="Maximum steps per episode.")
     parser.add_argument("--start-level", type=int, default=1, help="Curriculum initial level (1-4).")

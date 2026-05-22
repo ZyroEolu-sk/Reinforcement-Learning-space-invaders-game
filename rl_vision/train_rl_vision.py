@@ -3,6 +3,7 @@ import os
 import shutil
 from pathlib import Path
 from typing import Callable
+import math
 import numpy as np
 import cv2
 from torch import nn
@@ -152,17 +153,24 @@ def parse_args():
     parser.add_argument("--img-height", type=int, default=112, help="Observation frame height after preprocessing.")
     parser.add_argument("--start-level", type=int, default=1, help="Curriculum initial level (1-4).")
     parser.add_argument("--max-level", type=int, default=1, help="Curriculum target level (1-4).")
-    parser.add_argument("--eval-freq", type=int, default=50000, help="Evaluation frequency in timesteps.")
+    parser.add_argument("--eval-freq", type=int, default=25000, help="Evaluation frequency in timesteps.")
     parser.add_argument("--n-eval-episodes", type=int, default=3, help="Episodes per periodic evaluation (lower is faster).")
-    parser.add_argument("--checkpoint-freq", type=int, default=50000, help="Checkpoint frequency in timesteps.")
+    parser.add_argument("--checkpoint-freq", type=int, default=25000, help="Checkpoint frequency in timesteps.")
     parser.add_argument("--obs-debug-freq", type=int, default=0, help="Save one stacked observation image every N callback steps (0 disables).")
     parser.add_argument("--obs-debug-dir", type=str, default="models/obs_debug", help="Directory to save observation debug images.")
     parser.add_argument(
         "--preset",
         type=str,
         default="baseline",
-        choices=["baseline", "conservative", "explore"],
-        help="Training preset: baseline/current, conservative/stable, explore/aggressive.",
+        choices=["baseline", "conservative", "explore", "optimized"],
+        help="Training preset: baseline/current, conservative/stable, explore/aggressive, optimized/fast.",
+    )
+    parser.add_argument(
+        "--lr-schedule",
+        type=str,
+        default="cosine",
+        choices=["constant", "linear", "cosine", "polynomial"],
+        help="Learning-rate schedule to use: constant, linear, cosine, or polynomial (default: cosine).",
     )
     parser.add_argument(
         "--arch",
@@ -189,12 +197,34 @@ def _get_hparams_from_preset(preset: str) -> dict:
             "clip_range": 0.2,
             "n_epochs": 10,
         }
+    if preset == "optimized":
+        return {
+            "learning_rate": 3e-4,
+            "ent_coef": 0.08,
+            "clip_range": 0.25,
+            "n_epochs": 15,
+        }
     return {
         "learning_rate": 2e-4,
         "ent_coef": 0.05,
         "clip_range": 0.2,
         "n_epochs": 10,
     }
+
+
+def linear_schedule(initial_value: float) -> Callable[[float], float]:
+    return lambda progress_remaining: progress_remaining * initial_value
+
+
+def cosine_schedule(initial_value: float) -> Callable[[float], float]:
+    # progress_remaining in [0,1]. At start (1.0) -> initial_value. At end (0.0) -> 0.0
+    return lambda progress_remaining: 0.5 * (1.0 + math.cos(math.pi * (1.0 - progress_remaining))) * initial_value
+
+
+def polynomial_schedule(initial_value: float, power: float = 1.0) -> Callable[[float], float]:
+    # Polynomial decay: (progress_remaining)^power * initial_value
+    # power=1.0 -> linear, power=2.0 -> quadratic
+    return lambda progress_remaining: (progress_remaining ** power) * initial_value
 
 def _resolve_project_path(path: str) -> str:
     """Obtain an absolute path from a potentially relative one, resolving it against the project root if necessary."""
@@ -219,14 +249,14 @@ def _build_policy_kwargs(arch: str) -> dict:
     if arch == "simple":
         return {
             "features_extractor_class": SpaceInvadersSimpleSiluCNN,
-            "features_extractor_kwargs": {"features_dim": 256},
-            "net_arch": {"pi": [256, 128], "vf": [256, 128]},
+            "features_extractor_kwargs": {"features_dim": 320},
+            "net_arch": {"pi": [512, 256], "vf": [512, 256]},
             "activation_fn": nn.SiLU,
         }
     return {
         "features_extractor_class": SpaceInvadersResidualSiluCNN,
-        "features_extractor_kwargs": {"features_dim": 384, "dropout_p": 0.10},
-        "net_arch": {"pi": [256, 128], "vf": [256, 128]},
+        "features_extractor_kwargs": {"features_dim": 512, "dropout_p": 0.08},
+        "net_arch": {"pi": [512, 256], "vf": [512, 256]},
         "activation_fn": nn.SiLU,
     }
 
@@ -273,14 +303,27 @@ def main():
 
     n_steps = 12000
     rollout_size = n_steps * num_envs
-    batch_size = _select_batch_size(rollout_size, preferred=512)
+    batch_size = _select_batch_size(rollout_size, preferred=256)
 
     preset_hparams = _get_hparams_from_preset(args.preset)
     policy_kwargs = _build_policy_kwargs(args.arch)
 
+    # Build learning-rate schedule according to CLI choice
+    initial_lr = preset_hparams["learning_rate"]
+    if args.lr_schedule == "constant":
+        lr = initial_lr
+    elif args.lr_schedule == "linear":
+        lr = linear_schedule(initial_lr)
+    elif args.lr_schedule == "cosine":
+        lr = cosine_schedule(initial_lr)
+    elif args.lr_schedule == "polynomial":
+        lr = polynomial_schedule(initial_lr, power=1.5)
+    else:
+        lr = initial_lr
+
     print(
         f"[config] arch={args.arch} preset={args.preset} num_envs={num_envs} "
-        f"lr={preset_hparams['learning_rate']} ent={preset_hparams['ent_coef']} clip={preset_hparams['clip_range']} "
+        f"lr={preset_hparams['learning_rate']} schedule={args.lr_schedule} ent={preset_hparams['ent_coef']} clip={preset_hparams['clip_range']} "
         f"batch={batch_size} rollout={rollout_size}"
     )
 
@@ -289,14 +332,16 @@ def main():
         env=train_env,
         n_steps=n_steps,
         batch_size=batch_size,
-        learning_rate=preset_hparams["learning_rate"],
+        learning_rate=lr,
         n_epochs=preset_hparams["n_epochs"],
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=preset_hparams["clip_range"],
+        clip_range_vf=None,
         ent_coef=preset_hparams["ent_coef"],
         vf_coef=0.5,
         max_grad_norm=0.5,
+        target_kl=None,
         verbose=1,
         tensorboard_log=logs_dir,
         seed=args.seed,

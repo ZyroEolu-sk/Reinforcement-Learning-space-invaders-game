@@ -4,6 +4,8 @@ import shutil
 from pathlib import Path
 from typing import Callable
 import numpy as np
+import math
+from scipy import stats
 
 from gym_env_vision import SpaceInvadersVisionEnv
 from custom_cnn import SpaceInvadersResidualSiluCNN
@@ -80,7 +82,7 @@ def parse_args():
     parser.add_argument(
         "--additional-timesteps",
         type=int,
-        default=1000000,
+        default=3000000,
         help="Extra timesteps to train from the loaded model.",
     )
     parser.add_argument(
@@ -92,32 +94,39 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
     parser.add_argument("--num-envs", type=int, default=4, help="Parallel training environments.")
     parser.add_argument("--frame-skip", type=int, default=2, help="Frames to skip per action.")
-    parser.add_argument("--max-steps", type=int, default=12000, help="Max steps per episode.")
+    parser.add_argument("--max-steps", type=int, default=24000, help="Max steps per episode.")
     parser.add_argument("--img-width", type=int, default=None, help="Observation frame width after preprocessing (auto from model if omitted).")
     parser.add_argument("--img-height", type=int, default=None, help="Observation frame height after preprocessing (auto from model if omitted).")
     parser.add_argument("--start-level", type=int, default=1, help="Curriculum initial level (1-4).")
     parser.add_argument("--max-level", type=int, default=4, help="Curriculum target level (1-4).")
-    parser.add_argument("--eval-freq", type=int, default=50000, help="Evaluation frequency in timesteps.")
+    parser.add_argument("--eval-freq", type=int, default=25000, help="Evaluation frequency in timesteps.")
     parser.add_argument("--n-eval-episodes", type=int, default=3, help="Episodes per periodic evaluation (lower is faster).")
-    parser.add_argument("--comparison-episodes", type=int, default=10, help="Episodes used in final model comparison.")
-    parser.add_argument("--checkpoint-freq", type=int, default=50000, help="Checkpoint frequency in timesteps.")
+    parser.add_argument("--comparison-episodes", type=int, default=50, help="Episodes used in final model comparison.")
+    parser.add_argument("--checkpoint-freq", type=int, default=25000, help="Checkpoint frequency in timesteps.")
     parser.add_argument(
         "--override-learning-rate",
         type=float,
-        default=None,
+        default=3e-4,
         help="Override learning rate for continued training (e.g. 3e-4).",
     )
     parser.add_argument(
         "--override-ent-coef",
         type=float,
-        default=None,
+        default=0.03,
         help="Override entropy coefficient to increase exploration (e.g. 0.02-0.05).",
     )
     parser.add_argument(
         "--override-clip-range",
         type=float,
-        default=None,
+        default=0.25,
         help="Override PPO clip range (e.g. 0.15-0.25).",
+    )
+    parser.add_argument(
+        "--lr-schedule",
+        type=str,
+        default="linear",
+        choices=["constant", "linear", "cosine", "polynomial"],
+        help="Learning-rate schedule to use when continuing training (default: linear).",
     )
     return parser.parse_args()
 
@@ -181,15 +190,35 @@ def _infer_combo_actions_from_model(model: PPO) -> bool:
     raise ValueError(f"Unsupported action-space size in model: {n_actions}")
 
 
+def linear_schedule(initial_value: float) -> Callable[[float], float]:
+    return lambda progress_remaining: progress_remaining * initial_value
+
+
+def cosine_schedule(initial_value: float) -> Callable[[float], float]:
+    return lambda progress_remaining: 0.5 * (1.0 + math.cos(math.pi * (1.0 - progress_remaining))) * initial_value
+
+
 def _apply_hyperparameter_overrides(model: PPO, args) -> None:
     # Anti-plateau defaults: use stronger exploration and faster updates unless explicitly overridden.
     lr = float(args.override_learning_rate) if args.override_learning_rate is not None else 2e-4
-    model.learning_rate = lr
-    model.lr_schedule = get_schedule_fn(lr)
-    if args.override_learning_rate is not None:
-        print(f"[override] learning_rate={lr}")
+    # Apply schedule selection
+    if getattr(args, "lr_schedule", "linear") == "constant":
+        model.learning_rate = lr
+        model.lr_schedule = get_schedule_fn(lr)
+    elif args.lr_schedule == "linear":
+        model.learning_rate = lr
+        model.lr_schedule = linear_schedule(lr)
+    elif args.lr_schedule == "cosine":
+        model.learning_rate = lr
+        model.lr_schedule = cosine_schedule(lr)
     else:
-        print(f"[default anti-plateau] learning_rate={lr}")
+        model.learning_rate = lr
+        model.lr_schedule = get_schedule_fn(lr)
+
+    if args.override_learning_rate is not None:
+        print(f"[override] learning_rate={lr} schedule={args.lr_schedule}")
+    else:
+        print(f"[default anti-plateau] learning_rate={lr} schedule={args.lr_schedule}")
 
     ent_coef = float(args.override_ent_coef) if args.override_ent_coef is not None else 0.05
     model.ent_coef = ent_coef
@@ -301,13 +330,13 @@ def main():
         candidate_paths.append(("interrupted_snapshot", interrupted_snapshot_zip))
 
     if candidate_paths and os.path.isfile(final_zip_path):
-        print("\n[model-comparison] Comparando modelo actual vs candidatos disponibles...")
+        print("\n[model-comparison] Comparación estadística (t-test) del modelo actual vs candidatos...")
         try:
             comparison_episodes = max(1, int(args.comparison_episodes))
             current_best = _load_ppo(final_zip_path)
 
             current_returns = []
-            for _ in range(comparison_episodes):
+            for i in range(comparison_episodes):
                 obs = eval_env.reset()
                 done = False
                 episode_return = 0.0
@@ -317,11 +346,16 @@ def main():
                     episode_return += float(rewards[0])
                     done = bool(dones[0])
                 current_returns.append(episode_return)
-            best_mean = float(np.mean(current_returns))
+            
+            current_mean = float(np.mean(current_returns))
+            current_std = float(np.std(current_returns))
             best_label = "modelo_actual"
             best_path = final_zip_path
+            best_model_data = (current_returns, current_mean, current_std, "modelo_actual")
 
-            print(f"  Modelo actual: {best_mean:.2f} (retornos: {current_returns})")
+            print(f"\n  📊 Modelo actual:")
+            print(f"     Media: {current_mean:.2f} ± {current_std:.2f}")
+            print(f"     Retornos: {current_returns}")
 
             for label, path in candidate_paths:
                 candidate_model = _load_ppo(path)
@@ -338,19 +372,41 @@ def main():
                     candidate_returns.append(episode_return)
 
                 candidate_mean = float(np.mean(candidate_returns))
-                print(f"  {label}: {candidate_mean:.2f} (retornos: {candidate_returns})")
-                if candidate_mean > best_mean:
-                    best_mean = candidate_mean
+                candidate_std = float(np.std(candidate_returns))
+                
+                print(f"\n  📊 {label}:")
+                print(f"     Media: {candidate_mean:.2f} ± {candidate_std:.2f}")
+                print(f"     Retornos: {candidate_returns}")
+                
+                # T-test: ¿Es el candidato estadísticamente mejor?
+                t_stat, p_value = stats.ttest_ind(candidate_returns, current_returns, alternative='greater')
+                cohens_d = (candidate_mean - current_mean) / np.sqrt((current_std**2 + candidate_std**2) / 2) if (current_std**2 + candidate_std**2) > 0 else 0
+                
+                print(f"     t-test (candidato > actual): t={t_stat:.4f}, p={p_value:.4f}, Cohen's d={cohens_d:.4f}")
+                
+                # Decidir si reemplazar basado en p-value < 0.3
+                if p_value < 0.3 and candidate_mean > current_mean:
+                    print(f"     ✅ Significativamente mejor (p < 0.3)")
                     best_label = label
                     best_path = path
+                    best_model_data = (candidate_returns, candidate_mean, candidate_std, label)
+                elif candidate_mean > current_mean:
+                    print(f"     ⚠️  Mejor media pero NO significativo (p ≥ 0.3)")
+                else:
+                    print(f"     ❌ No es mejor que el actual")
 
+            print(f"\n[resultado] Mejor modelo elegido: {best_label}")
             if os.path.abspath(best_path) != os.path.abspath(final_zip_path):
                 shutil.copy2(best_path, final_zip_path)
-                print(f"✓ Mejor candidato: {best_label}. Sobreescrito: {final_zip_path}")
+                returns, mean, std, name = best_model_data
+                print(f"✓ Sobreescrito best_model. Media: {mean:.2f} ± {std:.2f}")
             else:
-                print("✗ Modelo actual sigue siendo el mejor. Se mantiene sin cambios.")
+                returns, mean, std, name = best_model_data
+                print(f"✗ Modelo actual es el mejor. Mantiene su posición. Media: {mean:.2f} ± {std:.2f}")
         except Exception as e:
-            print(f"  ⚠ Error en comparación: {e}. Se mantiene el modelo actual.")
+            print(f"  ⚠️  Error en comparación estadística: {e}. Se mantiene el modelo actual.")
+            import traceback
+            traceback.print_exc()
     else:
         # No candidates available or final model does not exist: save the latest in-memory model.
         model.save(model_path)

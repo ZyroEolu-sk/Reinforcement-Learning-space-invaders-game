@@ -46,7 +46,7 @@ def parse_args():
     )
     parser.add_argument("--episodes", type=int, default=3, help="Number of episodes to play.")
     parser.add_argument("--frame-skip", type=int, default=2, help="Frame skip used by the environment.")
-    parser.add_argument("--max-steps", type=int, default=12000, help="Maximum steps per episode.")
+    parser.add_argument("--max-steps", type=int, default=24000, help="Maximum steps per episode.")
     parser.add_argument("--img-width", type=int, default=None, help="Observation frame width after preprocessing (auto if omitted).")
     parser.add_argument("--img-height", type=int, default=None, help="Observation frame height after preprocessing (auto if omitted).")
     parser.add_argument("--start-level", type=int, default=1, help="Starting level (1-4).")
