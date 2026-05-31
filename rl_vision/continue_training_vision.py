@@ -384,14 +384,14 @@ def main():
                 
                 print(f"     t-test (candidato > actual): t={t_stat:.4f}, p={p_value:.4f}, Cohen's d={cohens_d:.4f}")
                 
-                # Decidir si reemplazar basado en p-value < 0.3
-                if p_value < 0.3 and candidate_mean > current_mean:
-                    print(f"     ✅ Significativamente mejor (p < 0.3)")
+                # Decidir si reemplazar basado en p-value < 0.15
+                if p_value < 0.15 and candidate_mean > current_mean:
+                    print(f"     ✅ Significativamente mejor (p < 0.15)")
                     best_label = label
                     best_path = path
                     best_model_data = (candidate_returns, candidate_mean, candidate_std, label)
                 elif candidate_mean > current_mean:
-                    print(f"     ⚠️  Mejor media pero NO significativo (p ≥ 0.3)")
+                    print(f"     ⚠️  Mejor media pero NO significativo (p ≥ 0.15)")
                 else:
                     print(f"     ❌ No es mejor que el actual")
 

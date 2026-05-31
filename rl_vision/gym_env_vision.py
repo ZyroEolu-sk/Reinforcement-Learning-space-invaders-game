@@ -182,7 +182,7 @@ class SpaceInvadersVisionEnv(gym.Env):
         # End-of-round penalty when aliens remain alive.
         if (terminated or truncated) and len(self.game.alien_group) > 0:
             remaining_aliens = float(len(self.game.alien_group))
-            total_reward -= min(4.0, 0.08 * remaining_aliens)
+            total_reward -= min(8.0, 0.16 * remaining_aliens)
 
         if self.render_mode == 'human':
             self.render()
@@ -280,7 +280,7 @@ class SpaceInvadersVisionEnv(gym.Env):
 
         # Señal densa de combate (misma regla en todos los niveles).
         if alien_kills > 0:
-            reward += 0.35 * float(alien_kills)
+            reward += 1 * float(alien_kills)
             self._steps_since_last_kill = 0
         elif current_alien_count > 0:
             self._steps_since_last_kill += 1

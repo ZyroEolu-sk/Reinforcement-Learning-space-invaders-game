@@ -51,7 +51,7 @@ def parse_args():
     parser.add_argument("--img-height", type=int, default=None, help="Observation frame height after preprocessing (auto if omitted).")
     parser.add_argument("--start-level", type=int, default=1, help="Starting level (1-4).")
     parser.add_argument("--max-level", type=int, default=4, help="Maximum level target (1-4).")
-    parser.add_argument("--seed", type=int, default=42, help="Base random seed.")
+    parser.add_argument("--seed", type=int, default=25, help="Base random seed.")
     parser.add_argument(
         "--stochastic",
         action="store_true",
@@ -110,6 +110,8 @@ def main():
     print(f"Playing {args.episodes} episode(s)...")
 
     for episode in range(1, args.episodes + 1):
+        episode_seed = args.seed + episode - 1
+        env.seed(episode_seed)
         obs = env.reset()
         done = False
         episode_reward = 0.0
@@ -126,7 +128,7 @@ def main():
             info = infos[0]
 
         print(
-            f"Episode {episode}: reward={episode_reward:.2f}, "
+            f"Episode {episode} (seed={episode_seed}): reward={episode_reward:.2f}, "
             f"steps={episode_steps}, score={info.get('score', 'n/a')}, "
             f"level={info.get('level', 'n/a')}, completed_game={info.get('completed_game', False)}"
         )
