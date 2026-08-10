@@ -1,7 +1,11 @@
 #!/bin/bash
 # Optimized training command for RL Vision model
 
-echo "🚀 Starting optimized training for RL Vision model..."
+# Este script vive en scripts/, pero el entrenamiento debe lanzarse desde la
+# raíz del repositorio para que las rutas por defecto de models/ resuelvan bien.
+cd "$(dirname "$0")/.." || exit 1
+
+echo "Starting optimized training for RL Vision model..."
 echo ""
 
 # Default values
@@ -9,7 +13,7 @@ TOTAL_TIMESTEPS=${1:-2000000}
 NUM_ENVS=${2:-4}
 MAX_LEVEL=${3:-4}
 
-echo "📊 Configuration:"
+echo "Configuration:"
 echo "  • Total timesteps: $TOTAL_TIMESTEPS"
 echo "  • Parallel envs: $NUM_ENVS"
 echo "  • Max difficulty level: $MAX_LEVEL"
@@ -31,5 +35,5 @@ python rl_vision/train_rl_vision.py \
   --seed 42
 
 echo ""
-echo "✅ Training completed!"
-echo "📁 Models saved to: models/vision/"
+echo "Training completed!"
+echo "Models saved to: models/vision/"

@@ -64,36 +64,36 @@ class SpaceInvadersDQNEnv(gym.Env):
     SCORE_SCALE          = 0.1
 
     # Bonus por kill inmediato (señal densa, crítica para DQN)
-    KILL_BONUS           = 0.5     # era 0.35
+    KILL_BONUS           = 0.5
 
     # Bonus adicional cuando el kill fue con combo move+shoot
-    COMBO_KILL_BONUS     = 0.15    # nuevo: premia disparar en movimiento
+    COMBO_KILL_BONUS     = 0.15    # Premia disparar en movimiento
 
     # Bonus al limpiar la oleada completa
-    WAVE_CLEAR_BONUS     = 6.0     # era 4.0
+    WAVE_CLEAR_BONUS     = 6.0
 
     # Penalización de estancamiento: empieza en 0, crece hasta MAX_STAGNATION
-    STAGNATION_SCALE     = 0.00008  # era 0.00001
-    MAX_STAGNATION       = 0.05     # era 0.002  ← cambio más importante
+    STAGNATION_SCALE     = 0.00008
+    MAX_STAGNATION       = 0.05
 
     # Steps sin kill a partir de los cuales se activa la penalización
-    STAGNATION_GRACE     = 30       # nuevo: grace period antes de penalizar
+    STAGNATION_GRACE     = 30       # Margen sin penalizar tras el último kill
 
     # Penalización por perder vida
-    LIFE_LOSS_PENALTY    = 8.0      # igual que antes
+    LIFE_LOSS_PENALTY    = 8.0
 
     # Penalización por game over
-    GAME_OVER_PENALTY    = 8.0      # igual
+    GAME_OVER_PENALTY    = 8.0
 
     # Bonus por completar el juego
-    GAME_CLEAR_BONUS     = 10.0     # igual
+    GAME_CLEAR_BONUS     = 10.0
 
     # Penalización final por aliens restantes (al truncar o terminar)
-    REMAINING_ALIEN_SCALE = 0.15    # era 0.08
-    MAX_REMAINING_PENALTY = 6.0     # era 4.0
+    REMAINING_ALIEN_SCALE = 0.15
+    MAX_REMAINING_PENALTY = 6.0
 
     # Cooldown entre disparos (en steps de juego, no de env)
-    SHOOT_COOLDOWN       = 20       # era 40
+    SHOOT_COOLDOWN       = 20
     # ─────────────────────────────────────────────────────────────────────────
 
     def __init__(
@@ -277,7 +277,7 @@ class SpaceInvadersDQNEnv(gym.Env):
                     0,
                 )
             )
-            self.game.cooldown = self.SHOOT_COOLDOWN   # ← reducido de 40 a 20
+            self.game.cooldown = self.SHOOT_COOLDOWN
 
     def _update_groups(self):
         if self.game.level_1:

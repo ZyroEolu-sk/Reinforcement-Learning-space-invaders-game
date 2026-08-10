@@ -144,11 +144,11 @@ def main():
     if os.path.isfile(eval_best_model_path):
         if os.path.abspath(eval_best_model_path) != os.path.abspath(final_zip_path):
             shutil.copy2(eval_best_model_path, final_zip_path)
-        print(f"✓ Mejor modelo guardado en: {final_zip_path}")
+        print(f"Mejor modelo guardado en: {final_zip_path}")
     else:
         # Fallback when EvalCallback did not produce a best model file.
         model.save(os.path.join(final_model_dir, "best_model"))
-        print(f"⚠ No se encontró best_model evaluado; se guardó el último modelo en: {final_zip_path}")
+        print(f"AVISO: No se encontró best_model evaluado; se guardó el último modelo en: {final_zip_path}")
 
     train_env.close()
     eval_env.close()

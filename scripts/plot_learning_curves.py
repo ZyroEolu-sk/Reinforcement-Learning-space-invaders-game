@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _resolve_path(path: str) -> Path:
@@ -71,8 +71,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=str,
-        default="learning_curves.png",
-        help="Output image path.",
+        default="figures/learning_curves.png",
+        help="Output image path (relative to the project root).",
     )
     parser.add_argument(
         "--title",

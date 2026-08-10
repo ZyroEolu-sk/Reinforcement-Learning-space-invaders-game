@@ -37,15 +37,20 @@ El juego en si vive en un repositorio aparte, incluido aqui como submodulo de Gi
 │  ├─ play_rl_vision.py       # Ejecucion/evaluacion de un modelo PPO
 │  └─ play_dqn_vision.py      # Ejecucion/evaluacion de un modelo DQN
 │
-├─ compare_models_ttest.py    # Comparacion estadistica (t-test) entre dos modelos
-├─ train_and_compare.py       # Encadena entrenamiento continuo + comparacion automatica
-├─ plot_learning_curves.py    # Genera curvas de aprendizaje a partir de los logs
+├─ scripts/                   # Analisis y utilidades
+│  ├─ compare_models_ttest.py # Comparacion estadistica (t-test) entre dos modelos
+│  ├─ train_and_compare.py    # Encadena entrenamiento continuo + comparacion automatica
+│  ├─ plot_learning_curves.py # Genera curvas de aprendizaje a partir de los logs
+│  └─ TRAIN_OPTIMIZED.sh      # Atajo para lanzar el entrenamiento de vision ya configurado
+│
+├─ docs/                      # Documentacion complementaria
+│  ├─ MEMORIA_TECNICA.md      # Documento tecnico
+│  └─ OPTIMIZATION_GUIDE.md   # Notas sobre los ajustes de hiperparametros de vision
+│
+├─ figures/                   # Graficas usadas en la memoria
+├─ media/                     # Grabaciones de partidas de los agentes
 │
 ├─ memoria.ipynb              # Memoria del proyecto (documento principal)
-├─ MEMORIA_TECNICA.md         # Documento tecnico complementario
-├─ OPTIMIZATION_GUIDE.md      # Notas sobre los ajustes de hiperparametros de vision
-├─ TRAIN_OPTIMIZED.sh         # Atajo para lanzar el entrenamiento de vision ya configurado
-│
 ├─ models/                    # Modelos entrenados, checkpoints y logs (ver seccion propia)
 ├─ space-invaders-game/       # Submodulo: el juego en Pygame
 ├─ pyproject.toml             # Dependencias (Python >= 3.11)
@@ -149,10 +154,10 @@ Ademas de las opciones del caso vectorial, acepta:
 | `--n-eval-episodes` | entero | — | Episodios por evaluacion periodica |
 | `--obs-debug-freq` / `--obs-debug-dir` | — | — | Volcado de observaciones para depuracion |
 
-El script `TRAIN_OPTIMIZED.sh` envuelve esta llamada con la configuracion recomendada:
+El script `scripts/TRAIN_OPTIMIZED.sh` envuelve esta llamada con la configuracion recomendada:
 
 ```bash
-./TRAIN_OPTIMIZED.sh [timesteps] [num_envs] [max_level]
+./scripts/TRAIN_OPTIMIZED.sh [timesteps] [num_envs] [max_level]
 ```
 
 ### Enfoque de vision con DQN
@@ -223,13 +228,13 @@ muestrea de la distribucion de acciones; en el vectorial, el comportamiento se c
 
 ```bash
 # Comparacion estadistica entre dos modelos mediante t-test
-uv run compare_models_ttest.py
+uv run scripts/compare_models_ttest.py
 
-# Curvas de aprendizaje a partir de los logs de entrenamiento
-uv run plot_learning_curves.py
+# Curvas de aprendizaje a partir de los logs; escribe en figures/
+uv run scripts/plot_learning_curves.py
 
 # Entrenamiento continuo seguido de comparacion automatica
-uv run train_and_compare.py
+uv run scripts/train_and_compare.py
 ```
 
 Los logs son de TensorBoard, asi que tambien pueden inspeccionarse directamente:
@@ -276,9 +281,10 @@ tendras que regenerarlos entrenando.
 
 - **`memoria.ipynb`** — memoria principal: formalizacion del problema como MDP, diseno iterativo
   de la funcion de recompensa, estado del arte, arquitecturas, diseno experimental y resultados.
-- **`MEMORIA_TECNICA.md`** — documento tecnico complementario.
-- **`OPTIMIZATION_GUIDE.md`** — registro de los ajustes de hiperparametros aplicados al
+- **`docs/MEMORIA_TECNICA.md`** — documento tecnico complementario.
+- **`docs/OPTIMIZATION_GUIDE.md`** — registro de los ajustes de hiperparametros aplicados al
   entrenamiento de vision y su motivacion.
+- **`media/`** — grabaciones de partidas de los agentes entrenados.
 
 ---
 

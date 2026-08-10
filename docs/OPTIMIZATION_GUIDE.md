@@ -1,8 +1,8 @@
-# 🚀 RL Vision Training - Optimizations Applied
+# RL Vision Training - Optimizations Applied
 
 ## Changes Made
 
-### 1. **New "optimized" Preset** ⚡
+### 1. **New "optimized"Preset**
 ```
 learning_rate:  3e-4      (↑ from 2e-4)
 ent_coef:       0.08      (↑ from 0.05)
@@ -11,7 +11,7 @@ n_epochs:       15        (↑ from 10)
 ```
 → Faster convergence with aggressive exploration
 
-### 2. **Improved CNN Architecture** 🧠
+### 2. **Improved CNN Architecture**
 **Residual (default):**
 - features_dim: 512 (↑ from 384)
 - dropout: 0.08 (↓ from 0.10)
@@ -23,29 +23,29 @@ n_epochs:       15        (↑ from 10)
 
 → Larger network capacity for better feature learning
 
-### 3. **Better Batch Size** 📦
+### 3. **Better Batch Size**
 - Default preferred batch: 256 (↓ from 512)
 - Better GPU memory utilization
 - Matches theoretical rollout sizes
 
-### 4. **New LR Schedules** 📉
+### 4. **New LR Schedules**
 - **cosine** (NEW DEFAULT): Smooth decay, better convergence
 - **polynomial**: Power=1.5, aggressive decay
 - Keep: constant, linear
 
 Recommendation: Use **cosine** (now default)
 
-### 5. **Improved Monitoring** 👁️
+### 5. **Improved Monitoring**
 - eval_freq: 25000 (↓ from 50000) - More frequent checks
 - checkpoint_freq: 25000 (↓ from 50000) - Better recovery points
 
-### 6. **Additional PPO Parameters** 🎯
+### 6. **Additional PPO Parameters**
 - clip_range_vf: None (Added, for flexibility)
 - target_kl: None (For early stopping option)
 
 ---
 
-## 🏃 Quick Start - Optimized Training
+## Quick Start - Optimized Training
 
 ### Option 1: Using the script
 ```bash
@@ -76,7 +76,7 @@ python rl_vision/train_rl_vision.py \
 
 ---
 
-## 📊 Expected Improvements
+## Expected Improvements
 
 | Metric | Before | After | Change |
 |--------|--------|-------|--------|
@@ -88,18 +88,18 @@ python rl_vision/train_rl_vision.py \
 
 ---
 
-## 🎓 Preset Recommendations
+## Preset Recommendations
 
 | Preset | Use Case | Training Time |
 |--------|----------|---|
-| **optimized** | Fast results, exploratory | 🏃 Fastest |
-| **explore** | Aggressive exploration | 🏃 Fast |
-| **baseline** | Balanced | 🚶 Moderate |
-| **conservative** | Stable/safe | 🐢 Slowest |
+| **optimized** | Fast results, exploratory | Fastest |
+| **explore** | Aggressive exploration | Fast |
+| **baseline** | Balanced | Moderate |
+| **conservative** | Stable/safe | Slowest |
 
 ---
 
-## ⚙️ Advanced: Fine-tuning
+## Advanced: Fine-tuning
 
 Adjust these for your specific needs:
 
@@ -116,7 +116,7 @@ Adjust these for your specific needs:
 
 ---
 
-## 📈 Monitoring Training
+## Monitoring Training
 
 Via TensorBoard:
 ```bash

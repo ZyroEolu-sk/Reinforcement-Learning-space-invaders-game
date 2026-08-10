@@ -250,7 +250,7 @@ def main():
     args = parse_args()
     preset_hparams = _get_hparams_from_preset(args.preset)
     
-    # 🏷️ NUEVO: Generación de identificador descriptivo y único para este experimento
+    # Identificador descriptivo y único para este experimento
     lr_value = preset_hparams["learning_rate"]
     model_identifier = f"dqn_{args.arch}_{args.preset}_lr{lr_value:.0e}_b{args.batch_size}"
     # Reemplazamos caracteres conflictivos (ej. 1e-04 -> 1e-04, quitamos signos raros)
@@ -314,9 +314,9 @@ def main():
     device = "mps" if torch.backends.mps.is_available() else "cpu"
 
     print("=" * 70)
-    print(f"🚀 INICIANDO EXPERIMENTO: {model_identifier.upper()}")
-    print(f"📂 Guardando todo en: {save_dir}")
-    print(f"🛠️ Hardware: {device.upper()} | Envs: {num_envs} | LR Schedule: {args.lr_schedule}")
+    print(f"INICIANDO EXPERIMENTO: {model_identifier.upper()}")
+    print(f"Guardando todo en: {save_dir}")
+    print(f"Hardware: {device.upper()} | Envs: {num_envs} | LR Schedule: {args.lr_schedule}")
     print("=" * 70)
 
     model = DQN(
@@ -355,10 +355,10 @@ def main():
 
     if os.path.isfile(eval_best_model_path):
         shutil.move(eval_best_model_path, final_zip_path)
-        print(f"✓ ¡Éxito! El mejor modelo se guardó como: {final_zip_path}")
+        print(f"¡Éxito! El mejor modelo se guardó como: {final_zip_path}")
     else:
         model.save(os.path.join(best_model_dir, model_identifier))
-        print(f"⚠ Guardado el último modelo de la memoria como: {final_zip_path}")
+        print(f"AVISO: Guardado el último modelo de la memoria como: {final_zip_path}")
 
     train_env.close()
     eval_env.close()
