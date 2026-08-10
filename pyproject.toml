@@ -1,7 +1,7 @@
 [project]
-name = "space-invaders-game"
+name = "rl-space-invaders"
 version = "0.1.0"
-description = "Add your description here"
+description = "Agentes de aprendizaje por refuerzo (PPO y DQN) entrenados sobre un Space Invaders propio, con enfoques vectorial y basado en vision"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

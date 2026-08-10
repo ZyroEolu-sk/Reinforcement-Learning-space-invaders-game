@@ -113,7 +113,7 @@ def parse_args():
         "--override-exploration-initial-eps",
         type=float,
         default=0.20,
-        help="Forzar un épsilon inicial al reanudar (ej. 0.20 significa 20% de acciones aleatorias para romper estancamientos).",
+        help="Forzar un épsilon inicial al reanudar (ej. 0.20 significa 20%% de acciones aleatorias para romper estancamientos).",
     )
     parser.add_argument(
         "--override-exploration-final-eps",
