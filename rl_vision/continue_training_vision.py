@@ -353,9 +353,9 @@ def main():
             best_path = final_zip_path
             best_model_data = (current_returns, current_mean, current_std, "modelo_actual")
 
-            print(f"\n  📊 Modelo actual:")
-            print(f"     Media: {current_mean:.2f} ± {current_std:.2f}")
-            print(f"     Retornos: {current_returns}")
+            print(f"\nModelo actual:")
+            print(f"Media: {current_mean:.2f} ± {current_std:.2f}")
+            print(f"Retornos: {current_returns}")
 
             for label, path in candidate_paths:
                 candidate_model = _load_ppo(path)
@@ -374,9 +374,9 @@ def main():
                 candidate_mean = float(np.mean(candidate_returns))
                 candidate_std = float(np.std(candidate_returns))
                 
-                print(f"\n  📊 {label}:")
-                print(f"     Media: {candidate_mean:.2f} ± {candidate_std:.2f}")
-                print(f"     Retornos: {candidate_returns}")
+                print(f"\n {label}:")
+                print(f"Media: {candidate_mean:.2f} ± {candidate_std:.2f}")
+                print(f"Retornos: {candidate_returns}")
                 
                 # T-test: ¿Es el candidato estadísticamente mejor?
                 t_stat, p_value = stats.ttest_ind(candidate_returns, current_returns, alternative='greater')
@@ -386,25 +386,25 @@ def main():
                 
                 # Decidir si reemplazar basado en p-value < 0.15
                 if p_value < 0.15 and candidate_mean > current_mean:
-                    print(f"     ✅ Significativamente mejor (p < 0.15)")
+                    print(f"Significativamente mejor (p < 0.15)")
                     best_label = label
                     best_path = path
                     best_model_data = (candidate_returns, candidate_mean, candidate_std, label)
                 elif candidate_mean > current_mean:
-                    print(f"     ⚠️  Mejor media pero NO significativo (p ≥ 0.15)")
+                    print(f"AVISO: Mejor media pero NO significativo (p ≥ 0.15)")
                 else:
-                    print(f"     ❌ No es mejor que el actual")
+                    print(f"No es mejor que el actual")
 
             print(f"\n[resultado] Mejor modelo elegido: {best_label}")
             if os.path.abspath(best_path) != os.path.abspath(final_zip_path):
                 shutil.copy2(best_path, final_zip_path)
                 returns, mean, std, name = best_model_data
-                print(f"✓ Sobreescrito best_model. Media: {mean:.2f} ± {std:.2f}")
+                print(f"Sobreescrito best_model. Media: {mean:.2f} ± {std:.2f}")
             else:
                 returns, mean, std, name = best_model_data
-                print(f"✗ Modelo actual es el mejor. Mantiene su posición. Media: {mean:.2f} ± {std:.2f}")
+                print(f"Modelo actual es el mejor. Mantiene su posición. Media: {mean:.2f} ± {std:.2f}")
         except Exception as e:
-            print(f"  ⚠️  Error en comparación estadística: {e}. Se mantiene el modelo actual.")
+            print(f"AVISO: Error en comparación estadística: {e}. Se mantiene el modelo actual.")
             import traceback
             traceback.print_exc()
     else:

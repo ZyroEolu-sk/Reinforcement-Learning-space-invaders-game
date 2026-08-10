@@ -9,7 +9,7 @@ if not hasattr(np, "_core"):
     sys.modules["numpy._core.numeric"] = np
 else:
     # Por si acaso ocurre al revés en tu versión exacta de Anaconda
-    sys.modules["numpy.core.numeric"] = np.numeric
+    sys.modules["numpy.core.numeric"] = np._core.numeric
 import argparse
 from pathlib import Path
 

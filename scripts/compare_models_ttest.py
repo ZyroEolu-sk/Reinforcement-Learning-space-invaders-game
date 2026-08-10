@@ -1,20 +1,31 @@
-"""
-Script para comparar dos modelos RL usando t-test
+"""Script para comparar dos modelos RL usando t-test
 Ejecuta múltiples episodios de cada modelo y realiza análisis estadístico
 """
 
 import argparse
+import sys
 from pathlib import Path
 import json
 import numpy as np
 from scipy import stats
 from typing import List, Tuple
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+# Este script vive en scripts/, pero importa los entornos desde la raíz del
+# repositorio, así que hay que añadirla al path antes de los imports locales.
+#
+# Además hay que añadir rl_vector/ y rl_vision/. Los modelos de visión se
+# guardaron con el extractor SpaceInvadersResidualSiluCNN, y al deserializarlos
+# cloudpickle busca 'custom_cnn' como módulo de primer nivel: sin esto,
+# PPO.load falla con ModuleNotFoundError sobre cualquier modelo de visión.
+for _p in (PROJECT_ROOT, PROJECT_ROOT / "rl_vector", PROJECT_ROOT / "rl_vision"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
 from stable_baselines3 import PPO
 from rl_vector.gym_env import SpaceInvadersGymEnv
 from rl_vision.gym_env_vision import SpaceInvadersVisionEnv
-
-PROJECT_ROOT = Path(__file__).resolve().parent
 
 
 def _resolve_project_path(path: str) -> Path:
@@ -26,8 +37,7 @@ def _resolve_project_path(path: str) -> Path:
 
 
 def evaluate_vector_model(model_path: str, episodes: int = 10, verbose: bool = True) -> List[float]:
-    """
-    Evalúa el modelo vectorial y retorna lista de puntuaciones.
+    """Evalúa el modelo vectorial y retorna lista de puntuaciones.
     
     Args:
         model_path: Ruta al modelo PPO
@@ -40,7 +50,7 @@ def evaluate_vector_model(model_path: str, episodes: int = 10, verbose: bool = T
     scores = []
     model_path_resolved = str(_resolve_project_path(model_path))
     
-    print(f"🎮 Cargando modelo vectorial: {model_path_resolved}")
+    print(f"Cargando modelo vectorial: {model_path_resolved}")
     model = PPO.load(model_path_resolved)
     
     for episode in range(episodes):
@@ -66,14 +76,13 @@ def evaluate_vector_model(model_path: str, episodes: int = 10, verbose: bool = T
         env.close()
         
         if verbose:
-            print(f"  Episodio {episode + 1}/{episodes}: Score = {episode_score}")
+            print(f"Episodio {episode + 1}/{episodes}: Score = {episode_score}")
     
     return scores
 
 
 def evaluate_vision_model(model_path: str, episodes: int = 10, verbose: bool = True) -> List[float]:
-    """
-    Evalúa el modelo de visión y retorna lista de puntuaciones.
+    """Evalúa el modelo de visión y retorna lista de puntuaciones.
     
     Args:
         model_path: Ruta al modelo PPO
@@ -86,7 +95,7 @@ def evaluate_vision_model(model_path: str, episodes: int = 10, verbose: bool = T
     scores = []
     model_path_resolved = str(_resolve_project_path(model_path))
     
-    print(f"🎮 Cargando modelo de visión: {model_path_resolved}")
+    print(f"Cargando modelo de visión: {model_path_resolved}")
     model = PPO.load(model_path_resolved)
     
     # Inferir tamaño de imagen desde el modelo
@@ -122,15 +131,14 @@ def evaluate_vision_model(model_path: str, episodes: int = 10, verbose: bool = T
         env.close()
         
         if verbose:
-            print(f"  Episodio {episode + 1}/{episodes}: Score = {episode_score}")
+            print(f"Episodio {episode + 1}/{episodes}: Score = {episode_score}")
     
     return scores
 
 
 def perform_ttest(scores1: List[float], scores2: List[float], model1_name: str = "Modelo 1", 
                   model2_name: str = "Modelo 2", alternative: str = "two-sided") -> dict:
-    """
-    Realiza t-test independiente entre dos muestras.
+    """Realiza t-test independiente entre dos muestras.
     
     Args:
         scores1: Puntuaciones del modelo 1
@@ -186,35 +194,35 @@ def perform_ttest(scores1: List[float], scores2: List[float], model1_name: str =
 def print_results(results: dict):
     """Imprime los resultados del t-test de forma amigable."""
     print("\n" + "="*70)
-    print("📊 RESULTADOS DEL T-TEST".center(70))
+    print("RESULTADOS DEL T-TEST".center(70))
     print("="*70)
     
     print(f"\n{results['model1_name']}:")
-    print(f"  Media: {results['model1_mean']:.2f} ± {results['model1_std']:.2f}")
-    print(f"  N: {results['model1_n']} episodios")
+    print(f"Media: {results['model1_mean']:.2f} ± {results['model1_std']:.2f}")
+    print(f"N: {results['model1_n']} episodios")
     
     print(f"\n{results['model2_name']}:")
-    print(f"  Media: {results['model2_mean']:.2f} ± {results['model2_std']:.2f}")
-    print(f"  N: {results['model2_n']} episodios")
+    print(f"Media: {results['model2_mean']:.2f} ± {results['model2_std']:.2f}")
+    print(f"N: {results['model2_n']} episodios")
     
-    print(f"\n📈 Prueba Estadística ({results['alternative']}):")
-    print(f"  Estadístico t: {results['t_statistic']:.4f}")
-    print(f"  Valor p: {results['p_value']:.6f}")
-    print(f"  Tamaño del efecto (Cohen's d): {results['cohens_d']:.4f}")
-    print(f"  IC 95% de la diferencia: [{results['ci_lower']:.2f}, {results['ci_upper']:.2f}]")
+    print(f"\nPrueba Estadística ({results['alternative']}):")
+    print(f"Estadístico t: {results['t_statistic']:.4f}")
+    print(f"Valor p: {results['p_value']:.6f}")
+    print(f"Tamaño del efecto (Cohen's d): {results['cohens_d']:.4f}")
+    print(f"IC 95% de la diferencia: [{results['ci_lower']:.2f}, {results['ci_upper']:.2f}]")
     
-    print(f"\n✅ Resultado:" if results['is_significant'] else "\n❌ Resultado:")
+    print(f"\nResultado:" if results['is_significant'] else "\nResultado:")
     if results['is_significant']:
-        print(f"  La diferencia ES estadísticamente significativa (p < 0.05)")
+        print(f"La diferencia ES estadísticamente significativa (p < 0.05)")
         if results['alternative'] == 'greater':
             print(f"  {results['model1_name']} obtiene puntuaciones SIGNIFICATIVAMENTE MAYORES")
         elif results['alternative'] == 'less':
             print(f"  {results['model1_name']} obtiene puntuaciones SIGNIFICATIVAMENTE MENORES")
         else:
-            print(f"  Los modelos obtienen puntuaciones SIGNIFICATIVAMENTE DIFERENTES")
+            print(f"Los modelos obtienen puntuaciones SIGNIFICATIVAMENTE DIFERENTES")
     else:
-        print(f"  NO hay diferencia estadísticamente significativa (p ≥ 0.05)")
-        print(f"  No podemos afirmar que un modelo es mejor que el otro")
+        print(f"NO hay diferencia estadísticamente significativa (p ≥ 0.05)")
+        print(f"No podemos afirmar que un modelo es mejor que el otro")
     
     print("\n" + "="*70)
 
@@ -292,10 +300,10 @@ def parse_args():
 def main():
     args = parse_args()
     
-    print("\n🚀 Iniciando comparación de modelos...\n")
+    print("\nIniciando comparación de modelos...\n")
     
     # Evaluar modelo 1
-    print(f"📍 Evaluando {args.model1_name}...")
+    print(f"Evaluando {args.model1_name}...")
     if args.model1_type == "vector":
         scores1 = evaluate_vector_model(
             args.model1_path,
@@ -310,7 +318,7 @@ def main():
         )
     
     # Evaluar modelo 2
-    print(f"\n📍 Evaluando {args.model2_name}...")
+    print(f"\nEvaluando {args.model2_name}...")
     if args.model2_type == "vector":
         scores2 = evaluate_vector_model(
             args.model2_path,
@@ -339,7 +347,7 @@ def main():
     if args.save_results:
         with open(args.save_results, 'w') as f:
             json.dump(results, f, indent=2)
-        print(f"\n💾 Resultados guardados en: {args.save_results}")
+        print(f"\nResultados guardados en: {args.save_results}")
 
 
 if __name__ == "__main__":

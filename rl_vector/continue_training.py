@@ -172,7 +172,7 @@ def main():
             new_candidate = PPO.load(eval_best_model_path)
             
             # Run quick evaluations (5 episodes each) to compare
-            print("  Evaluando modelo actual (5 episodios)...")
+            print("Evaluando modelo actual (5 episodios)...")
             current_returns = []
             for _ in range(5):
                 obs, _ = eval_env.reset()
@@ -185,7 +185,7 @@ def main():
                     done = done or truncated
                 current_returns.append(episode_return)
             
-            print("  Evaluando modelo nuevo (5 episodios)...")
+            print("Evaluando modelo nuevo (5 episodios)...")
             new_returns = []
             for _ in range(5):
                 obs, _ = eval_env.reset()
@@ -201,25 +201,25 @@ def main():
             current_mean = float(np.mean(current_returns))
             new_mean = float(np.mean(new_returns))
             
-            print(f"  Modelo actual: {current_mean:.2f} (returnos: {current_returns})")
-            print(f"  Modelo nuevo:  {new_mean:.2f} (returnos: {new_returns})")
+            print(f"Modelo actual: {current_mean:.2f} (returnos: {current_returns})")
+            print(f"Modelo nuevo:  {new_mean:.2f} (returnos: {new_returns})")
             
             if new_mean > current_mean:
                 shutil.copy2(eval_best_model_path, final_zip_path)
-                print(f"✓ Modelo nuevo es mejor (+{new_mean - current_mean:.2f}). Sobreescrito: {final_zip_path}")
+                print(f"Modelo nuevo es mejor (+{new_mean - current_mean:.2f}). Sobreescrito: {final_zip_path}")
             else:
-                print(f"✗ Modelo actual es mejor o igual. Manteniéndolo: {final_zip_path}")
+                print(f"Modelo actual es mejor o igual. Manteniéndolo: {final_zip_path}")
         except Exception as e:
-            print(f"  ⚠ Error en comparación: {e}. Usando EvalCallback best_model.")
+            print(f"AVISO: Error en comparación: {e}. Usando EvalCallback best_model.")
             shutil.copy2(eval_best_model_path, final_zip_path)
     elif os.path.isfile(eval_best_model_path):
         # Same file path, no copy needed
-        print(f"✓ Mejor modelo guardado en: {final_zip_path}")
+        print(f"Mejor modelo guardado en: {final_zip_path}")
     else:
         # No eval best model found, save current
         model.save(model_path)
         print(
-            "⚠ No se encontro best_model.zip en evaluaciones; "
+            "AVISO: No se encontro best_model.zip en evaluaciones; "
             f"se guardo el último modelo entrenado en: {final_zip_path}"
         )
 

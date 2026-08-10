@@ -208,3 +208,31 @@ __marimo__/
 
 # Local configuration file for Space Invaders game
 score.json
+
+# -----------------------------------------------------------------------------
+# Artefactos de entrenamiento de RL
+# -----------------------------------------------------------------------------
+# Los checkpoints intermedios son enormes (~48 MB cada uno, cientos por corrida).
+# Solo se versionan los modelos finales de models/**/best_model*/.
+models/**/checkpoints/
+models/**/checkpoints_continued/
+
+# Imagenes de depuracion de observaciones (--obs-debug-dir)
+models/**/obs_debug/
+
+# Directorio de logs suelto en la raiz; los logs reales viven en models/**/logs/
+/logs/
+
+# -----------------------------------------------------------------------------
+# Multimedia pesada
+# -----------------------------------------------------------------------------
+# Las grabaciones de partidas no deben versionarse: usar un enlace externo.
+*.mp4
+
+# -----------------------------------------------------------------------------
+# Artefactos del sistema
+# -----------------------------------------------------------------------------
+# Metadatos que Windows adjunta a los ficheros descargados, visibles desde WSL
+*:Zone.Identifier
+.DS_Store
+Thumbs.db

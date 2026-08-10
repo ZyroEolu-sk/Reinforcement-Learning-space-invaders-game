@@ -11,7 +11,7 @@ import torch
 from gym_env_vision import SpaceInvadersVisionEnv
 from custom_cnn import SpaceInvadersResidualSiluCNN
 
-from stable_baselines3 import DQN  # CAMBIO: PPO -> DQN
+from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback, EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.utils import get_schedule_fn
@@ -102,7 +102,7 @@ def parse_args():
     parser.add_argument("--comparison-episodes", type=int, default=50, help="Episodes used in final model comparison.")
     parser.add_argument("--checkpoint-freq", type=int, default=25000, help="Checkpoint frequency in timesteps.")
     
-    # CAMBIOS: Hiperparámetros modificados para adaptarse a la naturaleza de DQN
+    # Hiperparámetros adaptados a la naturaleza de DQN
     parser.add_argument(
         "--override-learning-rate",
         type=float,
@@ -113,7 +113,7 @@ def parse_args():
         "--override-exploration-initial-eps",
         type=float,
         default=0.20,
-        help="Forzar un épsilon inicial al reanudar (ej. 0.20 significa 20% de acciones aleatorias para romper estancamientos).",
+        help="Forzar un épsilon inicial al reanudar (ej. 0.20 significa 20%% de acciones aleatorias para romper estancamientos).",
     )
     parser.add_argument(
         "--override-exploration-final-eps",
@@ -192,7 +192,7 @@ def cosine_schedule(initial_value: float) -> Callable[[float], float]:
 
 
 def _apply_hyperparameter_overrides(model: DQN, args) -> None:
-    # CAMBIO: Lógica de overrides adaptada a DQN
+    # Lógica de overrides adaptada a DQN
     lr = float(args.override_learning_rate) if args.override_learning_rate is not None else 1e-4
     if getattr(args, "lr_schedule", "constant") == "constant":
         model.learning_rate = lr
@@ -262,7 +262,7 @@ def main():
     )
     clear_rate_callback = ClearRateCallback()
 
-    # CAMBIO: Forzar la carga en el acelerador M2 de Apple "mps"
+    # Forzar la carga en el acelerador M2 de Apple "mps"
     device = "mps" if torch.backends.mps.is_available() else "cpu"
 
     model = _load_dqn(
@@ -324,9 +324,9 @@ def main():
             best_path = final_zip_path
             best_model_data = (current_returns, current_mean, current_std, "modelo_actual")
 
-            print(f"\n  📊 Modelo actual:")
-            print(f"     Media: {current_mean:.2f} ± {current_std:.2f}")
-            print(f"     Retornos: {current_returns}")
+            print(f"\nModelo actual:")
+            print(f"Media: {current_mean:.2f} ± {current_std:.2f}")
+            print(f"Retornos: {current_returns}")
 
             for label, path in candidate_paths:
                 candidate_model = _load_dqn(path) # Cargar con la clase DQN
@@ -345,9 +345,9 @@ def main():
                 candidate_mean = float(np.mean(candidate_returns))
                 candidate_std = float(np.std(candidate_returns))
                 
-                print(f"\n  📊 {label}:")
-                print(f"     Media: {candidate_mean:.2f} ± {candidate_std:.2f}")
-                print(f"     Retornos: {candidate_returns}")
+                print(f"\n {label}:")
+                print(f"Media: {candidate_mean:.2f} ± {candidate_std:.2f}")
+                print(f"Retornos: {candidate_returns}")
                 
                 t_stat, p_value = stats.ttest_ind(candidate_returns, current_returns, alternative='greater')
                 cohens_d = (candidate_mean - current_mean) / np.sqrt((current_std**2 + candidate_std**2) / 2) if (current_std**2 + candidate_std**2) > 0 else 0
@@ -355,25 +355,25 @@ def main():
                 print(f"     t-test (candidato > actual): t={t_stat:.4f}, p={p_value:.4f}, Cohen's d={cohens_d:.4f}")
                 
                 if p_value < 0.3 and candidate_mean > current_mean:
-                    print(f"     ✅ Significativamente mejor (p < 0.3)")
+                    print(f"Significativamente mejor (p < 0.3)")
                     best_label = label
                     best_path = path
                     best_model_data = (candidate_returns, candidate_mean, candidate_std, label)
                 elif candidate_mean > current_mean:
-                    print(f"     ⚠️  Mejor media pero NO significativo (p ≥ 0.3)")
+                    print(f"AVISO: Mejor media pero NO significativo (p ≥ 0.3)")
                 else:
-                    print(f"     ❌ No es mejor que el actual")
+                    print(f"No es mejor que el actual")
 
             print(f"\n[resultado] Mejor modelo elegido: {best_label}")
             if os.path.abspath(best_path) != os.path.abspath(final_zip_path):
                 shutil.copy2(best_path, final_zip_path)
                 returns, mean, std, name = best_model_data
-                print(f"✓ Sobreescrito best_model. Media: {mean:.2f} ± {std:.2f}")
+                print(f"Sobreescrito best_model. Media: {mean:.2f} ± {std:.2f}")
             else:
                 returns, mean, std, name = best_model_data
-                print(f"✗ Modelo actual es el mejor. Mantiene su posición. Media: {mean:.2f} ± {std:.2f}")
+                print(f"Modelo actual es el mejor. Mantiene su posición. Media: {mean:.2f} ± {std:.2f}")
         except Exception as e:
-            print(f"  ⚠️  Error en comparación estadística: {e}. Se mantiene el modelo actual.")
+            print(f"AVISO: Error en comparación estadística: {e}. Se mantiene el modelo actual.")
             import traceback
             traceback.print_exc()
     else:
