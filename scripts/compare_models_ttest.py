@@ -14,8 +14,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # Este script vive en scripts/, pero importa los entornos desde la raíz del
 # repositorio, así que hay que añadirla al path antes de los imports locales.
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+#
+# Además hay que añadir rl_vector/ y rl_vision/. Los modelos de visión se
+# guardaron con el extractor SpaceInvadersResidualSiluCNN, y al deserializarlos
+# cloudpickle busca 'custom_cnn' como módulo de primer nivel: sin esto,
+# PPO.load falla con ModuleNotFoundError sobre cualquier modelo de visión.
+for _p in (PROJECT_ROOT, PROJECT_ROOT / "rl_vector", PROJECT_ROOT / "rl_vision"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from stable_baselines3 import PPO
 from rl_vector.gym_env import SpaceInvadersGymEnv
